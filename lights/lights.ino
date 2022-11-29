@@ -1,121 +1,250 @@
 #include <ezButton.h>
 #include <ArduinoJson.h>
+#include <L298N.h>
+
+// // Include RadioHead Amplitude Shift Keying Library
+// #include <RH_ASK.h>
+// // Include dependant SPI Library
+// #include <SPI.h>
 
 
-#define pushme 5
-#define lamp 7
-#define ldr A0
-#define low 100
-#define high 200
-#define meh -1
-#define period 10
+// Button / Switch Pins
+#define buttonPin A2
+#define lowerLimitPin A4
+#define upperLimitPin A5
 
-const unsigned long wait = 1000 * 5;
+// Lamp and Light Dependant Resistor Pins
+#define lampPin 7
+#define ldrPin A0
+
+// Motor Pins
+#define motorUp 12
+#define motorDown 11
+#define motorControl 10
+
+// Boundaries
+#define low 100    // Low light boundary.
+#define high 200   // High light boundary.
+#define meh -1     // Default reading.
+#define period 10  // Number of readings in array.
 
 boolean open = false;
+boolean stopEverything = false;
 float readings[period];
 int pointer = 0;
 
-ezButton button(pushme);  // create ezButton object that attach to pin 7;
+// Init all buttons / switches
+ezButton button(buttonPin);
+ezButton lowerSwitch(lowerLimitPin);
+ezButton upperSwitch(upperLimitPin);
 
+// Init motor with controller
+L298N motor(motorControl, motorUp, motorDown);
+
+// // Create Amplitude Shift Keying Object
+// RH_ASK rf_driver;
 
 void setup() {
   Serial.begin(9600);
-  pinMode(lamp, OUTPUT);
+  pinMode(lampPin, OUTPUT);
+  pinMode(motorUp, OUTPUT);
+  pinMode(motorDown, OUTPUT);
+  pinMode(motorControl, OUTPUT);
+
+  // Init readings array to all meh
   for (int i = 0; i < period; i++) {
     readings[i] = meh;
   }
+
+  // Set motor to slow
+  motor.setSpeed(20);
+
+  // // Init the 433 driver
+  // rf_driver.init();
 }
 
 int counter = 0;
 
+// MAIN LOOP
 void loop() {
   button.loop();
+
+  // ####### TIME BASED EVENTS ######
+  // Loop happens ~ 100ms, so times
+  // are modulos of seconds * 100
+
   // 30 seconds approx.
-  if (counter % 300 == 0 ) {
+  if (counter % 300 == 0) {
     getReading();
   }
+
   // 300 seconds approx.
   if (counter % 3000 == 0) {
-    setStatus();
+    if (!stopEverything) {
+      setStatus();
+      checkDrift();
+    }
     sendStatus();
   }
+
+  // ################################
+
   delay(100);
 
   if (button.isPressed()) {
-    Serial.println("The button is pressed");
     openDoor(!open);
-    // delay(300000);
+    stopEverything = !stopEverything;
+    Serial.print("Stopped: ");
+    if (stopEverything) {
+      Serial.println("y");
+    } else {
+      Serial.println("n");
+    }
   }
 
-  // if (button.isReleased())
-  //   Serial.println("The button is released");
-
   counter++;
-  if ( counter > 20000 ) counter = 1;
+  if (counter > 30000) counter = 1;
 }
 
 void getReading() {
   // Get reading
-  int c = analogRead(ldr);
+  int c = analogRead(ldrPin);
   if (pointer >= period) pointer = 0;
   readings[pointer++] = c;
 
   // Report current reading
-  Serial.print("LDR Reading: ");
-  Serial.println(c);
+  Serial.print("ldrCur: ");
+  Serial.print(c);
+  Serial.print(" ldrAvg: ");
+  Serial.println(getAverageLdrReading());
 }
 
+// Set the door status
+//   get average reading for period
+//   if average > high, if door closed, open it
+//   if average < low, if door open, close it
 void setStatus() {
-  int average = 0;
-  int counter = 0;
-  for (int i = 0; i < period; i++) {
-    if (readings[i] > -1) {
-      average += readings[i];
-      counter++;
-    }
-  }
-  average = average / counter;
-  Serial.print("Average: ");
-  Serial.print(average);
-  Serial.print("  Pointer: ");
-  Serial.println(pointer);
-
+  int average = getAverageLdrReading();
   if (average > high) {
     if (!open) {
-      Serial.println("Over high and closed");
       openDoor(true);
     }
   } else if (average < low) {
     if (open) {
-      Serial.println("Under low and open");
       openDoor(false);
     }
   }
 }
 
 void openDoor(boolean newStatus) {
-  Serial.print("Moving door to ");
   if (newStatus) {
-    Serial.println("Open");
-    digitalWrite(lamp, HIGH);
+    Serial.println("Opening");
+    moveDoor(upperSwitch, true);
     open = true;
+    digitalWrite(lampPin, HIGH);
   } else {
-    Serial.println("Closed");
+    Serial.println("Closing");
+    moveDoor(lowerSwitch, false);
     open = false;
-    digitalWrite(lamp, LOW);
+    digitalWrite(lampPin, LOW);
   }
 }
 
-void sendStatus() {
-  Serial.println("Sending data");
+// Move the door in a direction until the limit is reached.
+void moveDoor(ezButton &limit, boolean upwards) {
 
+  // Start movement, slow
+  if ( upwards ) {
+    motor.forward();
+  } else {
+    motor.backward();
+  }
+
+  // Wait for it to get there
+  limit.loop();
+  while (limit.getState() != 0) {
+    delay(100);
+    limit.loop();
+  }
+
+  // Stop movement
+  motor.stop();
+}
+
+// Build json object and send via 433 or http
+void sendStatus() {
   StaticJsonDocument<200> doc;
+
+  // Who am i
+  doc["id"] = 254;
+  doc["model"] = "ChickenRun";
+  doc["channel"] = 4;
+
+  // Get states
+  upperSwitch.loop();
+  lowerSwitch.loop();
+  doc["upper"] = upperSwitch.getState();
+  doc["lower"] = lowerSwitch.getState();
+
+  // Any other readings that might be available
   doc["temp"] = 20;
   doc["hum"] = 60;
-  doc["upper"] = false;
-  doc["lower"] = true;
-  doc["open"] = open;
-  doc["reading"] = readings[pointer];
+  doc["bat"] = 1;
 
+  // Get readings
+  doc["ldrAvg"] = getAverageLdrReading();
+  doc["ldrCur"] = getCurrentLdrReading();
+
+  // Get states
+  doc["open"] = open;
+  doc["stop"] = stopEverything;
+
+  String output = "";
+  serializeJson(doc, output);
+  // TODO: send somewhere using device
+  Serial.println(output);
+
+  // int str_len = output.length() + 1;
+  // char *char_array[str_len];
+  // output.toCharArray((uint8_t *)char_array, str_len);
+  // rf_driver.send(char_array);
+}
+
+// Total all non-meh values and average
+int getAverageLdrReading() {
+  int total = 0;
+  int counter = 0;
+  for (int i = 0; i < period; i++) {
+    if (readings[i] != meh) {
+      total += readings[i];
+      counter++;
+    }
+  }
+  return total / counter;
+}
+
+// Get the most recent reading
+int getCurrentLdrReading() {
+  int pos = pointer - 1;
+  if (pos < 0) pos = period - 1;
+  return readings[pos];
+}
+
+// If the weight of the door has cause it to close a bit
+//   or something has pushed it up a bit
+// Might be helped by using a stepper motor or somehow applying drag to the spindle.
+void checkDrift() {
+  upperSwitch.loop();
+  lowerSwitch.loop();
+
+  if ( open && upperSwitch.getState() == 1 ) {
+    Serial.println("State drift down.");
+    // TODO: Something
+    openDoor(true);
+  }
+  if ( !open && lowerSwitch.getState() == 1 ) {
+    Serial.println("State drift up.");
+    // TODO: Something
+    openDoor(false);
+  }
 }
