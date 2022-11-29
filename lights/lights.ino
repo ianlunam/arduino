@@ -7,7 +7,6 @@
 // // Include dependant SPI Library
 // #include <SPI.h>
 
-
 // Button / Switch Pins
 #define buttonPin A2
 #define lowerLimitPin A4
@@ -28,6 +27,7 @@
 #define meh -1     // Default reading.
 #define period 10  // Number of readings in array.
 
+// Starting points
 boolean open = false;
 boolean stopEverything = false;
 float readings[period];
@@ -44,6 +44,9 @@ L298N motor(motorControl, motorUp, motorDown);
 // // Create Amplitude Shift Keying Object
 // RH_ASK rf_driver;
 
+// ########################################
+// setup() is run before first run of loop()
+// ########################################
 void setup() {
   Serial.begin(9600);
   pinMode(lampPin, OUTPUT);
@@ -63,34 +66,71 @@ void setup() {
   // rf_driver.init();
 }
 
+// ########################################
+// Structures for timer functions
+// ########################################
+typedef void (*FuncPtr)(void);
+typedef struct {
+  uint32_t frequency;     // Frequency in seconds
+  FuncPtr function;       // Function to be called
+} functionTimer;
+
+// ########################################
+// Array of functions to call and how often
+// ########################################
+const int numberOfTimers = 2;    // Number of timers defined in functionTimers below
+functionTimer functionTimers[] = {
+  {30, &ShortLoop},
+  {300, &LongLoop}
+};
+
+// Loop control counter
 int counter = 0;
 
+// ########################################
 // MAIN LOOP
+// ########################################
 void loop() {
-  button.loop();
-
-  // ####### TIME BASED EVENTS ######
-  // Loop happens ~ 100ms, so times
-  // are modulos of seconds * 100
-
-  // 30 seconds approx.
-  if (counter % 300 == 0) {
-    getReading();
-  }
-
-  // 300 seconds approx.
-  if (counter % 3000 == 0) {
-    if (!stopEverything) {
-      setStatus();
-      checkDrift();
-    }
-    sendStatus();
-  }
+  // Initialise everything needed for the loop
+  initLoop();
 
   // ################################
+  // ####### TIME BASED EVENTS from functionTimers above ######
+  // ################################
+  for (int i=0; i<numberOfTimers; i++) {
+    if ( counter % (functionTimers[i].frequency * 10) == 0) {
+      functionTimers[i].function();
+    }
+  }
+  // ################################
 
+  // Things to do every loop, after time based events
+  endLoop();
+
+  // ################################
+  // Loop control
+  // ################################
+  // Loop period
   delay(100);
+  // Loop counter
+  //  Note: resetting counter to 1 if over 3000 prevents number from forever climbing.
+  //        3000 is ((multiple of all functionTimers.frequencies) * (1000/loop period))
+  counter++;
+  if (counter > 3000) counter = 1;
+  // ################################
 
+}
+// ########################################
+
+// Things to happen at the begining of every loop
+void initLoop() {
+  button.loop();
+}
+
+// Things to happen at the end of every loop
+void endLoop() {
+
+  // If button pressed, change door status and disable further changes
   if (button.isPressed()) {
     openDoor(!open);
     stopEverything = !stopEverything;
@@ -101,9 +141,20 @@ void loop() {
       Serial.println("n");
     }
   }
+}
 
-  counter++;
-  if (counter > 30000) counter = 1;
+// Things that we want to have happen around every 30s (0.5mins)
+void ShortLoop() {
+  getReading();
+}
+
+// Things that we want to have happen around every 300s (5mins)
+void LongLoop() {
+  if (!stopEverything) {
+    setStatus();
+    checkDrift();
+  }
+  sendStatus();
 }
 
 void getReading() {
@@ -136,6 +187,7 @@ void setStatus() {
   }
 }
 
+// Open (or close) the door
 void openDoor(boolean newStatus) {
   if (newStatus) {
     Serial.println("Opening");
@@ -171,7 +223,7 @@ void moveDoor(ezButton &limit, boolean upwards) {
   motor.stop();
 }
 
-// Build json object and send via 433 or http
+// Build json object and send via 433 (or http)
 void sendStatus() {
   StaticJsonDocument<200> doc;
 
