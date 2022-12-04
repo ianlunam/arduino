@@ -1,6 +1,5 @@
 #include <ezButton.h>
 #include <ArduinoJson.h>
-#include <L298N.h>
 
 // // Include RadioHead Amplitude Shift Keying Library
 // #include <RH_ASK.h>
@@ -8,18 +7,14 @@
 // #include <SPI.h>
 
 // Button / Switch Pins
-#define buttonPin A2
-#define lowerLimitPin A4
-#define upperLimitPin A5
+#define buttonPin 4
 
 // Lamp and Light Dependant Resistor Pins
 #define lampPin 7
 #define ldrPin A0
 
 // Motor Pins
-#define motorUp 12
-#define motorDown 11
-#define motorControl 10
+#define motorControl 12
 
 // Boundaries
 #define low 100    // Low light boundary.
@@ -35,11 +30,6 @@ int pointer = 0;
 
 // Init all buttons / switches
 ezButton button(buttonPin);
-ezButton lowerSwitch(lowerLimitPin);
-ezButton upperSwitch(upperLimitPin);
-
-// Init motor with controller
-L298N motor(motorControl, motorUp, motorDown);
 
 // // Create Amplitude Shift Keying Object
 // RH_ASK rf_driver;
@@ -50,17 +40,14 @@ L298N motor(motorControl, motorUp, motorDown);
 void setup() {
   Serial.begin(9600);
   pinMode(lampPin, OUTPUT);
-  pinMode(motorUp, OUTPUT);
-  pinMode(motorDown, OUTPUT);
   pinMode(motorControl, OUTPUT);
+  pinMode(buttonPin, INPUT);
+  pinMode(ldrPin, INPUT);
 
   // Init readings array to all meh
   for (int i = 0; i < period; i++) {
     readings[i] = meh;
   }
-
-  // Set motor to slow
-  motor.setSpeed(20);
 
   // // Init the 433 driver
   // rf_driver.init();
@@ -152,7 +139,6 @@ void ShortLoop() {
 void LongLoop() {
   if (!stopEverything) {
     setStatus();
-    checkDrift();
   }
   sendStatus();
 }
@@ -191,36 +177,15 @@ void setStatus() {
 void openDoor(boolean newStatus) {
   if (newStatus) {
     Serial.println("Opening");
-    moveDoor(upperSwitch, true);
     open = true;
+    digitalWrite(motorControl, HIGH);
     digitalWrite(lampPin, HIGH);
   } else {
     Serial.println("Closing");
-    moveDoor(lowerSwitch, false);
     open = false;
+    digitalWrite(motorControl, LOW);
     digitalWrite(lampPin, LOW);
   }
-}
-
-// Move the door in a direction until the limit is reached.
-void moveDoor(ezButton &limit, boolean upwards) {
-
-  // Start movement, slow
-  if ( upwards ) {
-    motor.forward();
-  } else {
-    motor.backward();
-  }
-
-  // Wait for it to get there
-  limit.loop();
-  while (limit.getState() != 0) {
-    delay(100);
-    limit.loop();
-  }
-
-  // Stop movement
-  motor.stop();
 }
 
 // Build json object and send via 433 (or http)
@@ -231,12 +196,6 @@ void sendStatus() {
   doc["id"] = 254;
   doc["model"] = "ChickenRun";
   doc["channel"] = 4;
-
-  // Get states
-  upperSwitch.loop();
-  lowerSwitch.loop();
-  doc["upper"] = upperSwitch.getState();
-  doc["lower"] = lowerSwitch.getState();
 
   // Any other readings that might be available
   doc["temp"] = 20;
@@ -280,23 +239,4 @@ int getCurrentLdrReading() {
   int pos = pointer - 1;
   if (pos < 0) pos = period - 1;
   return readings[pos];
-}
-
-// If the weight of the door has cause it to close a bit
-//   or something has pushed it up a bit
-// Might be helped by using a stepper motor or somehow applying drag to the spindle.
-void checkDrift() {
-  upperSwitch.loop();
-  lowerSwitch.loop();
-
-  if ( open && upperSwitch.getState() == 1 ) {
-    Serial.println("State drift down.");
-    // TODO: Something
-    openDoor(true);
-  }
-  if ( !open && lowerSwitch.getState() == 1 ) {
-    Serial.println("State drift up.");
-    // TODO: Something
-    openDoor(false);
-  }
 }
