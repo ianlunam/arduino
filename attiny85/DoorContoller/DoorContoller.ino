@@ -1,4 +1,3 @@
-#include <ezButton.h>
 #include <ArduinoJson.h>
 
 // // Include RadioHead Amplitude Shift Keying Library
@@ -7,14 +6,14 @@
 // #include <SPI.h>
 
 // Button / Switch Pins
-#define buttonPin 4
+#define buttonPin 2  // PB2, pin 7, INT0
 
 // Lamp and Light Dependant Resistor Pins
-#define lampPin 7
-#define ldrPin A0
+#define lampPin 0  // PB0, pin 5
+#define ldrPin 3   // PB3, pin 2
 
 // Motor Pins
-#define motorControl 12
+#define motorControl 4  // PB4, pin 3
 
 // Boundaries
 #define low 100    // Low light boundary.
@@ -28,9 +27,6 @@ boolean stopEverything = false;
 float readings[period];
 int pointer = 0;
 
-// Init all buttons / switches
-ezButton button(buttonPin);
-
 // // Create Amplitude Shift Keying Object
 // RH_ASK rf_driver;
 
@@ -38,7 +34,9 @@ ezButton button(buttonPin);
 // setup() is run before first run of loop()
 // ########################################
 void setup() {
-  Serial.begin(9600);
+  GIMSK |= (1 << INT0);   // enable external interrupt
+  MCUCR |= (1 << ISC00);  // CHANGE mode
+
   pinMode(lampPin, OUTPUT);
   pinMode(motorControl, OUTPUT);
   pinMode(buttonPin, INPUT);
@@ -53,24 +51,6 @@ void setup() {
   // rf_driver.init();
 }
 
-// ########################################
-// Structures for timer functions
-// ########################################
-typedef void (*FuncPtr)(void);
-typedef struct {
-  uint32_t frequency;     // Frequency in seconds
-  FuncPtr function;       // Function to be called
-} functionTimer;
-
-// ########################################
-// Array of functions to call and how often
-// ########################################
-const int numberOfTimers = 2;    // Number of timers defined in functionTimers below
-functionTimer functionTimers[] = {
-  {30, &ShortLoop},
-  {300, &LongLoop}
-};
-
 // Loop control counter
 int counter = 0;
 
@@ -78,22 +58,18 @@ int counter = 0;
 // MAIN LOOP
 // ########################################
 void loop() {
-  // Initialise everything needed for the loop
-  initLoop();
 
-  // ################################
-  // ####### TIME BASED EVENTS from functionTimers above ######
-  // ################################
-  for (int i=0; i<numberOfTimers; i++) {
-    if ( counter % (functionTimers[i].frequency * 10) == 0) {
-      functionTimers[i].function();
-    }
+  if ((counter % 300) == 0) {
+    getReading();
   }
-  // ################################
 
-  // Things to do every loop, after time based events
-  endLoop();
-
+  if ((counter % 3000) == 0) {
+    if (!stopEverything) {
+      setStatus();
+    }
+    // sendStatus();
+  }
+  
   // ################################
   // Loop control
   // ################################
@@ -105,42 +81,15 @@ void loop() {
   counter++;
   if (counter > 3000) counter = 1;
   // ################################
-
 }
 // ########################################
 
-// Things to happen at the begining of every loop
-void initLoop() {
-  button.loop();
-}
-
-// Things to happen at the end of every loop
-void endLoop() {
-
-  // If button pressed, change door status and disable further changes
-  if (button.isPressed()) {
-    openDoor(!open);
+ISR(INT0_vect) {
+  int i = digitalRead(buttonPin);
+  if (i == 1) {
     stopEverything = !stopEverything;
-    Serial.print("Stopped: ");
-    if (stopEverything) {
-      Serial.println("y");
-    } else {
-      Serial.println("n");
-    }
+    openDoor(!open);
   }
-}
-
-// Things that we want to have happen around every 30s (0.5mins)
-void ShortLoop() {
-  getReading();
-}
-
-// Things that we want to have happen around every 300s (5mins)
-void LongLoop() {
-  if (!stopEverything) {
-    setStatus();
-  }
-  sendStatus();
 }
 
 void getReading() {
@@ -148,12 +97,6 @@ void getReading() {
   int c = analogRead(ldrPin);
   if (pointer >= period) pointer = 0;
   readings[pointer++] = c;
-
-  // Report current reading
-  Serial.print("ldrCur: ");
-  Serial.print(c);
-  Serial.print(" ldrAvg: ");
-  Serial.println(getAverageLdrReading());
 }
 
 // Set the door status
@@ -176,50 +119,48 @@ void setStatus() {
 // Open (or close) the door
 void openDoor(boolean newStatus) {
   if (newStatus) {
-    Serial.println("Opening");
     open = true;
     digitalWrite(motorControl, HIGH);
     digitalWrite(lampPin, HIGH);
   } else {
-    Serial.println("Closing");
     open = false;
     digitalWrite(motorControl, LOW);
     digitalWrite(lampPin, LOW);
   }
 }
 
-// Build json object and send via 433 (or http)
-void sendStatus() {
-  StaticJsonDocument<200> doc;
+// // Build json object and send via 433 (or http)
+// void sendStatus() {
+//   StaticJsonDocument<200> doc;
 
-  // Who am i
-  doc["id"] = 254;
-  doc["model"] = "ChickenRun";
-  doc["channel"] = 4;
+//   // Who am i
+//   doc["id"] = 254;
+//   doc["model"] = "ChickenRun";
+//   doc["channel"] = 4;
 
-  // Any other readings that might be available
-  doc["temp"] = 20;
-  doc["hum"] = 60;
-  doc["bat"] = 1;
+//   // Any other readings that might be available
+//   doc["temp"] = 20;
+//   doc["hum"] = 60;
+//   doc["bat"] = 1;
 
-  // Get readings
-  doc["ldrAvg"] = getAverageLdrReading();
-  doc["ldrCur"] = getCurrentLdrReading();
+//   // Get readings
+//   doc["ldrAvg"] = getAverageLdrReading();
+//   doc["ldrCur"] = getCurrentLdrReading();
 
-  // Get states
-  doc["open"] = open;
-  doc["stop"] = stopEverything;
+//   // Get states
+//   doc["open"] = open;
+//   doc["stop"] = stopEverything;
 
-  String output = "";
-  serializeJson(doc, output);
-  // TODO: send somewhere using device
-  Serial.println(output);
+//   String output = "";
+//   serializeJson(doc, output);
+//   // TODO: send somewhere using device
+//   Serial.println(output);
 
-  // int str_len = output.length() + 1;
-  // char *char_array[str_len];
-  // output.toCharArray((uint8_t *)char_array, str_len);
-  // rf_driver.send(char_array);
-}
+//   // int str_len = output.length() + 1;
+//   // char *char_array[str_len];
+//   // output.toCharArray((uint8_t *)char_array, str_len);
+//   // rf_driver.send(char_array);
+// }
 
 // Total all non-meh values and average
 int getAverageLdrReading() {
