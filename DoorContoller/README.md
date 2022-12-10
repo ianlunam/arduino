@@ -1,6 +1,6 @@
 # Arduino Uno version of hen house door opener.
 
-NOTE: Out of date. See [attiny version](attiny85/DoorContoller).
+NOTE: Out of date. See [attiny version](../attiny85/DoorContoller).
 
 Logic:
 * DoorController:
