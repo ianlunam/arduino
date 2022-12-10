@@ -83,3 +83,8 @@ Faster speeds mean the interrupt timer runs faster and screws up my timings.
 * Override button:
  - Press 1) disable logic, swap controller output
  - Press 2) enable logic, swap controller output
+
+## Soon to come
+
+* Send door opening / closing signal via 433Mhz transmitter
+* Send state every 5mins via 433Mhz transmitter
