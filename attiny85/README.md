@@ -6,7 +6,7 @@ NOTE: In Arduino IDE v2 to upload to an IC via `Arduino as ISP` use `Sketch` -> 
 
 ## Wiring for programming attiny85 via Arduino Uno
 
-![attiny85 pinout](../ATtiny85-Pinout.png)
+![attiny85 pinout](ATtiny85-Pinout.png)
 
 ATtiny85 Pin -> Arduino Uno Pin
 
