@@ -1,5 +1,10 @@
 # Hen house door controller
 
+## NOTE:
+
+Set attiny clock speed to 1Mhz and re-burn the bootloader (Options on `Tools` menu of Arduino IDE).
+Faster speeds mean the interrupt timer runs faster and screws up my timings.
+
 ## Requirement
 
 * Minimal power consumption
@@ -13,6 +18,7 @@
  - Press 1) disable logic, swap door state
  - Press 2) enable logic, swap door state
 * If door open, LED on
+* Go to sleep when nothing is happening
 
 ## Components
 
