@@ -9,7 +9,7 @@ Logic:
   - If button pressed, disable interest in light and move door to opposite of that it is
   - While door is open, have LED on
 
-* Actual motor controller logic circuit.
+* Motor controller logic circuit.
   - Two reed switches, one at top and one at bottom of door. Triggered by magnet in door moving to top/bottom.
   - DC motor with enough power, connected to L298N controller
   - Only one input - high for door to be open, low for door to be closed
