@@ -1,10 +1,16 @@
-/ #include <ArduinoJson.h>
-
 // All these are for timer interrupt
 #include <avr/io.h>
 #include <avr/wdt.h>
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
+
+// // Include RadioHead Amplitude Shift Keying Library
+// #include <RH_ASK.h>
+// // Include dependant SPI Library
+// #include <SPI.h>
+
+// For JSON
+#include <ArduinoJson.h>
 
 // Pins
 #define buttonPin 2     // PB2, pin 7, INT0
