@@ -4,11 +4,6 @@
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
 
-// // Include RadioHead Amplitude Shift Keying Library
-// #include <RH_ASK.h>
-// // Include dependant SPI Library
-// #include <SPI.h>
-
 // For JSON
 #include <ArduinoJson.h>
 
@@ -141,39 +136,6 @@ void openDoor(boolean newStatus) {
   }
 }
 
-// // Build json object and send via 433 (or http)
-// void sendStatus() {
-//   StaticJsonDocument<200> doc;
-
-//   // Who am i
-//   doc["id"] = 254;
-//   doc["model"] = "ChickenRun";
-//   doc["channel"] = 4;
-
-//   // Any other readings that might be available
-//   doc["temp"] = 20;
-//   doc["hum"] = 60;
-//   doc["bat"] = 1;
-
-//   // Get readings
-//   doc["ldrAvg"] = getAverageLdrReading();
-//   doc["ldrCur"] = getCurrentLdrReading();
-
-//   // Get states
-//   doc["open"] = open;
-//   doc["stop"] = stopEverything;
-
-//   String output = "";
-//   serializeJson(doc, output);
-//   // TODO: send somewhere using device
-//   Serial.println(output);
-
-//   // int str_len = output.length() + 1;
-//   // char *char_array[str_len];
-//   // output.toCharArray((uint8_t *)char_array, str_len);
-//   // rf_driver.send(char_array);
-// }
-
 // Total all non-meh values and average
 int getAverageLdrReading() {
   int total = 0;
@@ -185,11 +147,4 @@ int getAverageLdrReading() {
     }
   }
   return total / counter;
-}
-
-// Get the most recent reading
-int getCurrentLdrReading() {
-  int pos = pointer - 1;
-  if (pos < 0) pos = period - 1;
-  return readings[pos];
 }
