@@ -13,6 +13,9 @@
 #define ldrPin 3        // PB3, pin 2
 #define motorControl 4  // PB4, pin 3
 
+#define timer30 5       // PB5, pin 1, PCINT5
+#define timer300 1       // PB1, pin 6, PCINT1
+
 // Boundaries
 #define low 100    // Low light boundary. Needs tuning.
 #define high 200   // High light boundary. Needs tuning.
@@ -24,6 +27,8 @@ boolean open = false;
 boolean stopEverything = false;
 float readings[period];
 int pointer = 0;
+volatile bool button_flag = false;
+
 
 void setup() {
   // Configure button interrupt
@@ -59,11 +64,7 @@ void setup() {
 
 // Button interrupt
 ISR(INT0_vect) {
-  int i = digitalRead(buttonPin);
-  if (i == 1) {
-    stopEverything = !stopEverything;
-    openDoor(!open);
-  }
+  button_flag = true;
 }
 
 // Loop control counter
@@ -71,17 +72,6 @@ int counter = 0;
 
 // Timer interrupt
 ISR(TIMER1_COMPA_vect) {
-  if ((counter % 30) == 0) {
-    getReading();
-  }
-
-  if ((counter % 300) == 0) {
-    if (!stopEverything) {
-      setStatus();
-    }
-    // sendStatus();
-  }
-
   // Loop counter
   //  Note: resetting counter to 1 if over 3000 prevents number from forever climbing.
   //        3000 is ((multiple of all functionTimers.frequencies) * (1000/loop period))
@@ -93,6 +83,23 @@ ISR(TIMER1_COMPA_vect) {
 // MAIN LOOP, does nothing. Everything happens via interrupts
 // ##########################################################
 void loop() {
+  if ((counter % 30) == 0) {
+    getReading();
+  }
+
+  if ((counter % 300) == 0) {
+    if (!stopEverything) {
+      setStatus();
+    }
+    // sendStatus();
+  }
+
+  if (button_flag) {
+    stopEverything = !stopEverything;
+    openDoor(!open);
+    button_flag = false;
+  }
+
   sleep_enable();
   sleep_cpu();
 }

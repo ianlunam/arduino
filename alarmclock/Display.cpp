@@ -1,24 +1,8 @@
+#include <Arduino.h>
 #include <Adafruit_SSD1306.h>
-// #include <Fonts/FreeMono12pt7b.h>
-#include <WiFi.h>
-#include <time.h>
-#include <HTTPClient.h>
-#include <ArduinoJson.h>
+#include <Wire.h>
 
-const char * ssid="xxxxxxxx";
-const char * wifipw="xxxxxxxx";
-
-const char * nztz="NZST-12NZDT,M9.5.0,M4.1.0/3";
-
-DynamicJsonDocument weather(1024);
-
-#define I2C_SDA 15
-#define I2C_SCL 14
-#define OFF_PIN 12
-#define SNOOZE_PIN 2
-#define BUZZER_PIN 13
-
-bool buzzer_state = HIGH;
+#include "Display.h"
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
@@ -27,50 +11,14 @@ bool buzzer_state = HIGH;
 #define SCREEN_ADDRESS 0x3C ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-#define WEATHER_URL "https://www.metservice.com/publicData/webdata/favourites/urban/tauranga"
+#define I2C_SDA 15
+#define I2C_SCL 14
 
 #define LOGO_HEIGHT   128
 #define LOGO_WIDTH    64
 
-const char* root_ca= \
-"-----BEGIN CERTIFICATE-----\n" \
-"MIIGEzCCA/ugAwIBAgIQfVtRJrR2uhHbdBYLvFMNpzANBgkqhkiG9w0BAQwFADCB\n" \
-"iDELMAkGA1UEBhMCVVMxEzARBgNVBAgTCk5ldyBKZXJzZXkxFDASBgNVBAcTC0pl\n" \
-"cnNleSBDaXR5MR4wHAYDVQQKExVUaGUgVVNFUlRSVVNUIE5ldHdvcmsxLjAsBgNV\n" \
-"BAMTJVVTRVJUcnVzdCBSU0EgQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwHhcNMTgx\n" \
-"MTAyMDAwMDAwWhcNMzAxMjMxMjM1OTU5WjCBjzELMAkGA1UEBhMCR0IxGzAZBgNV\n" \
-"BAgTEkdyZWF0ZXIgTWFuY2hlc3RlcjEQMA4GA1UEBxMHU2FsZm9yZDEYMBYGA1UE\n" \
-"ChMPU2VjdGlnbyBMaW1pdGVkMTcwNQYDVQQDEy5TZWN0aWdvIFJTQSBEb21haW4g\n" \
-"VmFsaWRhdGlvbiBTZWN1cmUgU2VydmVyIENBMIIBIjANBgkqhkiG9w0BAQEFAAOC\n" \
-"AQ8AMIIBCgKCAQEA1nMz1tc8INAA0hdFuNY+B6I/x0HuMjDJsGz99J/LEpgPLT+N\n" \
-"TQEMgg8Xf2Iu6bhIefsWg06t1zIlk7cHv7lQP6lMw0Aq6Tn/2YHKHxYyQdqAJrkj\n" \
-"eocgHuP/IJo8lURvh3UGkEC0MpMWCRAIIz7S3YcPb11RFGoKacVPAXJpz9OTTG0E\n" \
-"oKMbgn6xmrntxZ7FN3ifmgg0+1YuWMQJDgZkW7w33PGfKGioVrCSo1yfu4iYCBsk\n" \
-"Haswha6vsC6eep3BwEIc4gLw6uBK0u+QDrTBQBbwb4VCSmT3pDCg/r8uoydajotY\n" \
-"uK3DGReEY+1vVv2Dy2A0xHS+5p3b4eTlygxfFQIDAQABo4IBbjCCAWowHwYDVR0j\n" \
-"BBgwFoAUU3m/WqorSs9UgOHYm8Cd8rIDZsswHQYDVR0OBBYEFI2MXsRUrYrhd+mb\n" \
-"+ZsF4bgBjWHhMA4GA1UdDwEB/wQEAwIBhjASBgNVHRMBAf8ECDAGAQH/AgEAMB0G\n" \
-"A1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjAbBgNVHSAEFDASMAYGBFUdIAAw\n" \
-"CAYGZ4EMAQIBMFAGA1UdHwRJMEcwRaBDoEGGP2h0dHA6Ly9jcmwudXNlcnRydXN0\n" \
-"LmNvbS9VU0VSVHJ1c3RSU0FDZXJ0aWZpY2F0aW9uQXV0aG9yaXR5LmNybDB2Bggr\n" \
-"BgEFBQcBAQRqMGgwPwYIKwYBBQUHMAKGM2h0dHA6Ly9jcnQudXNlcnRydXN0LmNv\n" \
-"bS9VU0VSVHJ1c3RSU0FBZGRUcnVzdENBLmNydDAlBggrBgEFBQcwAYYZaHR0cDov\n" \
-"L29jc3AudXNlcnRydXN0LmNvbTANBgkqhkiG9w0BAQwFAAOCAgEAMr9hvQ5Iw0/H\n" \
-"ukdN+Jx4GQHcEx2Ab/zDcLRSmjEzmldS+zGea6TvVKqJjUAXaPgREHzSyrHxVYbH\n" \
-"7rM2kYb2OVG/Rr8PoLq0935JxCo2F57kaDl6r5ROVm+yezu/Coa9zcV3HAO4OLGi\n" \
-"H19+24rcRki2aArPsrW04jTkZ6k4Zgle0rj8nSg6F0AnwnJOKf0hPHzPE/uWLMUx\n" \
-"RP0T7dWbqWlod3zu4f+k+TY4CFM5ooQ0nBnzvg6s1SQ36yOoeNDT5++SR2RiOSLv\n" \
-"xvcRviKFxmZEJCaOEDKNyJOuB56DPi/Z+fVGjmO+wea03KbNIaiGCpXZLoUmGv38\n" \
-"sbZXQm2V0TP2ORQGgkE49Y9Y3IBbpNV9lXj9p5v//cWoaasm56ekBYdbqbe4oyAL\n" \
-"l6lFhd2zi+WJN44pDfwGF/Y4QA5C5BIG+3vzxhFoYt/jmPQT2BVPi7Fp2RBgvGQq\n" \
-"6jG35LWjOhSbJuMLe/0CjraZwTiXWTb2qHSihrZe68Zk6s+go/lunrotEbaGmAhY\n" \
-"LcmsJWTyXnW0OMGuf1pGg+pRyrbxmRE1a6Vqe8YAsOf4vmSyrcjC8azjUeqkk+B5\n" \
-"yOGBQMkKW+ESPMFgKuOXwIlCypTPRpgSabuY0MLTDXJLR27lk8QyKGOHQ+SwMj4K\n" \
-"00u/I5sUKUErmgQfky3xxzlIPK1aEn8=\n" \
-"-----END CERTIFICATE-----\n";
-
 // 'Penguin2', 128x64px
-const unsigned char epd_bitmap_Penguin2 [] PROGMEM = {
+const unsigned char penguin_bitmap [] PROGMEM = {
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
@@ -137,144 +85,66 @@ const unsigned char epd_bitmap_Penguin2 [] PROGMEM = {
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 };
 
-void setup() {
+String zoneData[4] = {"", "", "", ""};
+
+Display::Display() {}
+
+void Display::init(){
   Wire.begin(I2C_SDA, I2C_SCL);
-  
-  Serial.begin(115200);
-  Serial.printf("Starting up");
 
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
     Serial.println(F("SSD1306 allocation failed"));
-    for(;;); // Don't proceed, loop forever
+    return;
   }
-  Serial.printf("Dislay up");
 
   // Keep it dim
   display.dim(true);
-  Serial.printf("Dimed");
 
+  // Clear and display logo
   display.clearDisplay();
-  display.drawBitmap(0, 0, epd_bitmap_Penguin2, LOGO_HEIGHT, LOGO_WIDTH, WHITE);
+  display.drawBitmap(0, 0, penguin_bitmap, LOGO_HEIGHT, LOGO_WIDTH, WHITE);
   display.display();
-
-  pinMode(BUZZER_PIN, OUTPUT);
-
-  startWifi();
-
-  initTime(nztz);   // Set for Melbourne/AU
-  printLocalTime();
-  getWeather();
 }
 
-void loop() {
-  digitalWrite(BUZZER_PIN, !buzzer_state);
-  buzzer_state = !buzzer_state;
-  cleanScreen();
-  printLocalTime();
-  printWeather();
-  display.display();
-  delay(2000);
+void Display::setString(int zone, String value) {
+  if (zoneData[zone] != value) {
+    zoneData[zone] = value;
+    updateDisplay();
+  }
 }
 
-void cleanScreen() {
+void Display::updateDisplay() {
   display.clearDisplay();
-}
-
-void displayTime(String tt) {
-  display.setTextSize(4);
-  display.setTextColor(WHITE);
-  display.setCursor(0, 0);
-  display.println(tt);
-}
-
-void displayText(String txt) {
-  display.setTextSize(1);
-  display.setTextColor(WHITE);
-  display.setCursor(0, 45);
-  display.println(txt);
-}
-
-void displayText2(String txt) {
-  display.setTextSize(1);
-  display.setTextColor(WHITE);
-  display.setCursor(0, 55);
-  display.println(txt);
-}
-
-void setTimezone(String timezone){
-  Serial.printf("  Setting Timezone to %s\n",timezone.c_str());
-  setenv("TZ",timezone.c_str(),1);  //  Now adjust the TZ.  Clock settings are adjusted to show the new local time
-  tzset();
-}
-
-void initTime(String timezone){
-  struct tm timeinfo;
-
-  Serial.println("Setting up time");
-  configTime(0, 0, "pool.ntp.org");    // First connect to NTP server, with 0 TZ offset
-  if(!getLocalTime(&timeinfo)){
-    Serial.println("  Failed to obtain time");
-    return;
+  for(int x=0; x<4; x++) {
+    switch(x) {
+      case 0:
+        display.setTextSize(4);
+        display.setTextColor(WHITE);
+        display.setCursor(0, 0);
+        display.println(zoneData[x]);
+        break;
+      case 1:
+        display.setTextSize(1);
+        display.setTextColor(WHITE);
+        display.setCursor(0, 45);
+        display.println(zoneData[x]);
+        break;
+      case 2:
+        display.setTextSize(1);
+        display.setTextColor(WHITE);
+        display.setCursor(0, 55);
+        display.println(zoneData[x]);
+        break;
+      case 3:
+        display.setTextSize(1);
+        display.setTextColor(WHITE);
+        display.setCursor(115, 55);
+        display.println(zoneData[x]);
+        break;
+      default:
+        break;
+    }
   }
-  Serial.println("  Got the time from NTP");
-  // Now we can set the real timezone
-  setTimezone(timezone);
-}
-
-
-void printLocalTime(){
-  struct tm timeinfo;
-
-  if(!getLocalTime(&timeinfo)){
-    Serial.println("Failed to obtain time 1");
-    return;
-  }
-  Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S zone %Z %z ");
-
-  char ptr[20];
-  int rc = strftime(ptr, 20, "%H:%M", &timeinfo);
-  displayTime(ptr);
-
-  rc = strftime(ptr, 20, "%a %e %b", &timeinfo);
-  displayText(ptr);
-  // Serial.println(ptr);
-}
-
-void  startWifi(){
-  WiFi.begin(ssid, wifipw);
-  Serial.println("Connecting Wifi");
-  while (WiFi.status() != WL_CONNECTED) {
-    Serial.print(".");
-    delay(500);
-  }
-  Serial.print("Wifi RSSI=");
-  Serial.println(WiFi.RSSI());
-}
-
-void getWeather() {
-  HTTPClient http;
-  String payload = "";
-
-  http.begin(WEATHER_URL, root_ca);
-  int httpCode = http.GET();
-  if (httpCode > 0) { //Check for the returning code
-    payload = http.getString();
-  } else {
-    Serial.println("Error on HTTP request");
-    return;
-  }
-  http.end();
-  
-  char chars[payload.length() + 1];
-  strcpy(chars, payload.c_str());
-  deserializeJson(weather, chars);
-}
-
-void printWeather() {
-  const char condition = weather["value"]["condition"];
-  const float high = weather["value"]["high"];
-  const float low = weather["value"]["low"];
-  Serial.println(condition);
-  displayText2(&condition);
+  display.display();
 }
