@@ -28,9 +28,9 @@ struct AlarmEntry {
   bool enabled;
 };
 
-const char* ssid = "xxxxxx";
-const char* password = "xxxxxxx";
-const char* data = "xxxxxxxxxxxx";
+const char* ssid = "xxxxx";
+const char* password = "xxxxx";
+const char* data = "xxxxx";
 
 void setup() {
   Serial.begin(115200);
@@ -38,8 +38,8 @@ void setup() {
 
   struct AlarmEntry alarmEntry;
   alarmEntry.name = "Ians";
-  alarmEntry.hour = "07";
-  alarmEntry.minute = "15";
+  alarmEntry.hour = "17";
+  alarmEntry.minute = "39";
   alarmEntry.sunday = false;
   alarmEntry.monday = true;
   alarmEntry.tuesday = true;
@@ -71,7 +71,15 @@ void setup() {
   Serial.println(alarmEntry.skip_phols);
   Serial.print("Enabled: ");
   Serial.println(alarmEntry.enabled);
-  
+
+  preferences.begin("wifiCreds", false);
+  preferences.putString("ssid", ssid);
+  preferences.putString("password", password);
+  preferences.end();
+
+  preferences.begin("holidayApi", false);
+  preferences.putString("apiKey", data);
+  preferences.end();
 }
 
 void loop() {

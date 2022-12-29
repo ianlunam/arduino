@@ -1,12 +1,25 @@
+#include <Arduino.h>
+
 #include "Network.h"
 #include "Clock.h"
 #include "WebContent.h"
 #include "Display.h"
 #include "Alarm.h"
+#include "Pitches.h"
 
 
 #define SNOOZE_BUTTON 12
-#define OFF_BUTTON 2
+#define OFF_BUTTON 13
+#define SPEAKER_PIN 27
+
+
+int melody[] = {
+  NOTE_C4, NOTE_G3, NOTE_G3, NOTE_A3, NOTE_G3, 0, NOTE_B3, NOTE_C4
+};
+
+int noteDurations[] = {
+  4, 8, 8, 4, 4, 4, 4, 4
+};
 
 
 Network network;
@@ -15,19 +28,28 @@ WebContent webContent;
 Display oled;
 Alarm myAlarms;
 
-bool snooze_pressed = false;
-bool off_pressed = false;
+time_t lastOffHit = 0;
+time_t lastSnoozeHit = 0;
+bool snoozeHit = false;
+bool offHit = false;
 
-
-void IRAM_ATTR toggleSnooze()
-{
-  snooze_pressed = true;
+void IRAM_ATTR toggleSnooze() {
+  if (lastSnoozeHit < (millis() - 1000)) {
+    Serial.println("Toggle snooze button");
+    snoozeHit = true;
+    lastSnoozeHit = millis();
+  }
 }
 
-void IRAM_ATTR toggleOff()
-{
-  off_pressed = true;
+
+void IRAM_ATTR toggleOff() {
+  if (lastOffHit < (millis() - 1000)) {
+    Serial.println("Toggle off button");
+    offHit = true;
+    lastOffHit = millis();
+  }
 }
+
 
 void setup() {
   // Start serial
@@ -51,7 +73,7 @@ void setup() {
   if (webContent.isTodayAHoliday()) {
     oled.setString(3, "P");
   } else {
-    oled.setString(3, " ");
+    oled.setString(3, "N");
   }
 
   // Reload alarms from memory
@@ -68,7 +90,7 @@ void setup() {
 
 
 void loop() {
-  vTaskDelay(100);  // 0.1s
+  delay(100);  // 0.1s
 
   // Update main screen
   oled.setString(0, myClock.getTimeString());
@@ -88,19 +110,59 @@ void loop() {
   // Web content refresh
   webContent.update();
 
-  // Chark alarm status
-  if (myAlarms.alarming()) {
-    // Get jiggy wid it
-  } else {
-    if (snooze_pressed) {
-      oled.setString(1, network.ipAddress());
-      vTaskDelay(5000);
-      snooze_pressed = false;
-    }
-    if (off_pressed) {
-      oled.setString(1, "Whatevs");
-      vTaskDelay(5000);
-      off_pressed = false;
-    }
+  // Check alarm status
+  if (myAlarms.alarming(webContent.isTodayAHoliday())) {
+    soundBeeper();
   }
+  if (snoozeHit) {
+    if (myAlarms.alarming(webContent.isTodayAHoliday())) {
+      Serial.println("Alarming snooze button noticed");
+      myAlarms.snooze();
+    } else {
+      Serial.println("Not alarming snooze button noticed");
+      oled.setString(1, network.ipAddress());
+      delay(5000);
+    }
+    snoozeHit = false;
+  }
+  if (offHit) {
+    if (myAlarms.alarming(webContent.isTodayAHoliday())) {
+      Serial.println("Alarming button off noticed");
+      myAlarms.turnOff();
+    } else {
+      Serial.println("Not alarming button off noticed");
+      myAlarms.turnOn();
+    }
+    offHit = false;
+  }
+}
+
+void soundBeeper() {
+  for (;;) {
+    for (int thisNote = 0; thisNote < 8; thisNote++) {
+      int noteDuration = 1000 / noteDurations[thisNote];
+      tone(SPEAKER_PIN, melody[thisNote], noteDuration);
+
+      int pauseBetweenNotes = noteDuration * 1.30;
+      delay(pauseBetweenNotes);
+      noTone(SPEAKER_PIN);
+      if (snoozeHit or offHit) return;
+    }
+    delay(1000 / portTICK_PERIOD_MS);
+    if (snoozeHit or offHit) return;
+  }
+}
+
+
+void tone(byte pin, int freq, int duration) {
+  ledcSetup(0, 2000, 8);   // setup beeper
+  ledcAttachPin(pin, 0);   // attach beeper
+  ledcWriteTone(0, freq);  // play tone
+  delay(duration);
+  ledcWrite(0, 0);
+}
+
+
+void noTone(byte pin) {
+  ledcWrite(0, 0);
 }

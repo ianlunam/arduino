@@ -18,8 +18,9 @@ void Network::connect(){
   WiFi.begin(ssid.c_str(), pwd.c_str());
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
+Serial.print(".");
   }
-  Serial.println("WiFi connected.");
+  Serial.println("\nWiFi connected.");
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 }

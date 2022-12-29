@@ -33,7 +33,13 @@ public:
   bool setAlarm(int key, AlarmEntry& alarmEntry);
   bool getAlarm(int key, AlarmEntry& newEntry);
 	bool getAlarm(char * name, AlarmEntry& newEntry);
-  bool alarming();
+  bool alarming(bool isPhol);
+  void turnOff();
+  void snooze();
+  void turnOn();
+private:
+  bool alarmTriggerNow(bool isPhol);
+  String toString(AlarmEntry& thisEntry);
 };
 
 #endif
