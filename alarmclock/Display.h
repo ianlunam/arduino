@@ -4,10 +4,10 @@
 
 class Display {
 public:
-	Display();
-	void init();
-	void updateDisplay();
-	void setString(int zone, String value);
+  Display();
+  void init();
+  void updateDisplay();
+  void setString(int zone, String value);
 };
 
 #endif

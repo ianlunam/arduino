@@ -25,75 +25,47 @@ struct AlarmEntry {
   bool friday;
   bool saturday;
   bool skip_phols;
+  bool once;
   bool enabled;
 };
+
 
 void setup() {
   Serial.begin(115200);
   Serial.println();
 
-  struct AlarmEntry alarmEntry;
+  AlarmEntry alarmEntries[6];
+  AlarmEntry alarmEntry;
 
-  bool result = getAlarm("Ians", alarmEntry);
-  if (!result) {
-    Serial.println("Nah");
-    return;
-  }
+  Preferences alarmStore;
+  alarmStore.begin("alarmStore", true);
+  // int size = alarmStore.getBytesLength("alarms");
+  // char* buf[size + 1];
+  // int result = alarmStore.getBytes("alarms", &buf, size);
+  // memcpy(&alarmEntries, buf, size);
+  preferences.remove("0");
+  preferences.remove("1");
+  preferences.remove("alarms");
+  preferences.clear();
+  alarmStore.end();
 
-  Serial.print("Name: ");
-  Serial.println(alarmEntry.name);
-  Serial.print("Hour: ");
-  Serial.println(alarmEntry.hour);
-  Serial.print("Minute: ");
-  Serial.println(alarmEntry.minute);
-  Serial.print("Sunday: ");
-  Serial.println(alarmEntry.sunday);
-  Serial.print("Monday: ");
-  Serial.println(alarmEntry.monday);
-  Serial.print("Skip Phols: ");
-  Serial.println(alarmEntry.skip_phols);
-  Serial.print("Enabled: ");
-  Serial.println(alarmEntry.enabled);
+  alarmEntry = alarmEntries[2];
+
+  // Serial.print("Name: ");
+  // Serial.println(alarmEntry.name);
+  // Serial.print("Hour: ");
+  // Serial.println(alarmEntry.hour);
+  // Serial.print("Minute: ");
+  // Serial.println(alarmEntry.minute);
+  // Serial.print("Sunday: ");
+  // Serial.println(alarmEntry.sunday);
+  // Serial.print("Monday: ");
+  // Serial.println(alarmEntry.monday);
+  // Serial.print("Skip Phols: ");
+  // Serial.println(alarmEntry.skip_phols);
+  // Serial.print("Enabled: ");
+  // Serial.println(alarmEntry.enabled);
 }
 
 void loop() {
-}
-
-
-
-bool getAlarm(char* name, AlarmEntry& newAlarm) {
-  AlarmEntry thisAlarm;
-  for (int x = 0; x < 6; x++) {
-    bool result = getAlarm(x, thisAlarm);
-    if (result) {
-      if (thisAlarm.name == name) {
-        Serial.println("GOT IT");
-        memcpy(&newAlarm, &thisAlarm, sizeof(thisAlarm));
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-bool getAlarm(int key, AlarmEntry& newAlarm) {
-  Preferences alarmStore;
-  alarmStore.begin("alarmStore", true);
-
-  char cstr[3];
-  itoa(key, cstr, 2);
-  if (alarmStore.isKey(cstr)) {
-    int size = alarmStore.getBytesLength(cstr);
-    if (size > 0) {
-      char* buf[size + 1];
-      int result = alarmStore.getBytes(cstr, &buf, size);
-      memcpy(&newAlarm, buf, size);
-      Serial.print("Got it: name=");
-      Serial.println(newAlarm.name);
-      alarmStore.end();
-      return true;
-    }
-  }
-  alarmStore.end();
-  return false;
 }

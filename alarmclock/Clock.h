@@ -4,11 +4,11 @@
 
 class Clock {
 public:
-	Clock();
+  Clock();
   void init();
   void update();
-	void connect(const char * ssid, const char * wifipw);
-	void setTime();
+  void connect(const char* ssid, const char* wifipw);
+  void setTime();
   String getTimeString();
   String getDateString();
   String getYearString();

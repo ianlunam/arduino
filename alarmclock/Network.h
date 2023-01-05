@@ -4,8 +4,8 @@
 
 class Network {
 public:
-	Network();
-	void connect();
+  Network();
+  void connect();
   String ipAddress();
 };
 

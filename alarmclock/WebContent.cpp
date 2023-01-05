@@ -1,5 +1,14 @@
 #include <Arduino.h>
+
+// Different machines :)
+#if defined(ESP32)
 #include <HTTPClient.h>
+#elif defined(ESP8266)
+#include <ESP8266HTTPClient.h>
+#else
+#error "This ain't a ESP8266 or ESP32!"
+#endif
+
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include <time.h>
@@ -13,7 +22,7 @@
 String weatherCondition = "None";
 bool isHoliday = false;
 int lastDay = 0;
-time_t lastContent;
+time_t lastWeather;
 
 
 WebContent::WebContent() {}
@@ -23,7 +32,7 @@ void WebContent::init() {
   if (!getLocalTime(&timeinfo)) {
     return;
   }
-  lastContent = mktime(&timeinfo);
+  lastWeather = mktime(&timeinfo);
 
   weather();
   holiday();
@@ -36,11 +45,12 @@ void WebContent::update() {
   }
 
   time_t now = mktime(&timeinfo);
-  if (now > (lastContent + (60 * 60))) {
+  if (now > (lastWeather + (60 * 60))) {
     weather();
-    holiday();
-    lastContent = now;
+    lastWeather = now;
   }
+
+  holiday(); // Only does it once a day. Check in function.
 }
 
 void WebContent::weather() {
@@ -83,10 +93,10 @@ void WebContent::holiday() {
   }
 
   if (lastDay == timeinfo.tm_mday) {
-    return; // Already up to date
+    return;  // Already up to date
   }
   lastDay = timeinfo.tm_mday;
-  
+
   char ptr[40];
   int rc = strftime(ptr, 40, "?year=%Y\&month=%m\&day=%d", &timeinfo);
 
@@ -115,7 +125,7 @@ void WebContent::holiday() {
   }
   http.end();
 
-  if (webpage.length() > 2) { // It'll just be "[]" if it's not a holidy
+  if (webpage.length() > 2) {  // It'll just be "[]" if it's not a holidy
     isHoliday = true;
   } else {
     isHoliday = false;
@@ -135,8 +145,8 @@ bool WebContent::isTodayAHoliday() {
 }
 
 String WebContent::convertCondition(String current) {
-  String weatherTypes[] = { "cloudy", "drizzle", "few-showers-night", "few-showers", "fine-night", "fine", "frost", "hail", "partly-cloudy-night", "partly-cloudy", "rain", "showers", "snow", "thunder" };
-  String weatherTypesMap[] = { "Cloudy", "Drizz", "Showers", "Showers", "Fine", "Fine", "Frost", "Hail", "Cloud", "Cloud", "Rain", "Showers", "Snow", "Thund" };
+  String weatherTypes[] = { "cloudy", "drizzle", "few-showers-night", "few-showers", "fine-night", "fine", "frost", "hail", "partly-cloudy-night", "partly-cloudy", "rain", "showers", "snow", "thunder", "wind-rain"};
+  String weatherTypesMap[] = { "Cloudy", "Drizz", "Showers", "Showers", "Fine", "Fine", "Frost", "Hail", "Cloud", "Cloud", "Rain", "Showers", "Snow", "Thund", "Wind-Rain"};
   for (int x = 0; x < 14; x++) {
     if (weatherTypes[x] == current) {
       return weatherTypesMap[x];

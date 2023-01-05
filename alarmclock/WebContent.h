@@ -6,11 +6,11 @@
 
 class WebContent {
 public:
-	WebContent();
-	void init();
-	void update();
-	String getWeatherString();
-	bool isTodayAHoliday();
+  WebContent();
+  void init();
+  void update();
+  String getWeatherString();
+  bool isTodayAHoliday();
   String convertCondition(String current);
 private:
   void weather();

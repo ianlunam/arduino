@@ -11,7 +11,8 @@
 
 int alarmState = ALARM_OFF;
 
-char alarmList[][20] = { "", "", "", "", "", "" };
+int alarmCounter = -1;
+AlarmEntry alarms[600];
 time_t alarmedLast[6];
 time_t snoozeTime = 0;
 time_t lastAlarmCheck = 0;
@@ -20,55 +21,60 @@ time_t lastAlarmCheck = 0;
 Alarm::Alarm() {}
 
 
-bool Alarm::init() {}
+bool Alarm::init() {
+  AlarmEntry iansAlarm;
+  bool happy = getAlarm("Ian", iansAlarm);
+  Serial.print("getAlarms hapy: ");
+  Serial.println(happy);
+  Serial.flush();
 
-void Alarm::getAlarmList() {
+  Serial.println(toString(iansAlarm));
+}
+
+
+bool Alarm::setAlarm(int key, AlarmEntry& alarmEntry) {
+  char cstr[3];
+  itoa(key, cstr, 2);
   Preferences preferences;
-
   preferences.begin("alarmStore", false);
-  if (preferences.isKey("alarms")) {
-    int size = preferences.getBytesLength("alarms");
-    if (size > 0) {
-      char* buf[size + 1];
-      int result = preferences.getBytes("alarms", &buf, size);
-      memcpy(&alarmList, buf, size);
-      preferences.end();
-      return;
-    }
-  }
-  for (int x = 0; x < 6; x++) {
-    strcpy(alarmList[x], "");
-  }
-  preferences.putBytes("alarms", &alarmList, sizeof(alarmList));
+  preferences.putBytes(cstr, &alarmEntry, sizeof(alarmEntry));
   preferences.end();
-  return;
+  init();
 }
 
 
 bool Alarm::getAlarm(char* name, AlarmEntry& newAlarm) {
-  getAlarmList();
-
-  bool inList = false;
-  for (int x = 0; x < 6; x++) {
-    if (strcmp(alarmList[x], name) == 0) {
-      inList = true;
+  AlarmEntry storedAlarms[6];
+  bool result = getAlarms(storedAlarms);
+  if (result) {
+    for (int i = 0; i < 6; i++) {
+      if (storedAlarms[i].name == name) {
+        memcpy(&newAlarm, &storedAlarms[i], sizeof(storedAlarms[i]));
+        return true;
+      }
     }
   }
+  return false;
+}
 
-  if (!inList) {
-    return false;
-  }
 
+bool Alarm::getAlarms(AlarmEntry newAlarms[600]) {
   Preferences alarmStore;
   alarmStore.begin("alarmStore", true);
+  Serial.println("Opened alarm store");
 
-  if (alarmStore.isKey(name)) {
-    int size = alarmStore.getBytesLength(name);
+  if (alarmStore.isKey("alarms")) {
+    Serial.println("Getting alarm preference");
+    int size = alarmStore.getBytesLength("alarms");
+    Serial.print("Size: ");
+    Serial.println(size);
     if (size > 0) {
       char* buf[size + 1];
-      int result = alarmStore.getBytes(name, &buf, size);
-      memcpy(&newAlarm, buf, size);
+      int result = alarmStore.getBytes("alarms", &buf, size);
+      Serial.println("Got alarms. Copying");
+      memcpy(&newAlarms, buf, size+1);
       alarmStore.end();
+      Serial.println("Returning alarms");
       return true;
     }
   }
@@ -87,7 +93,7 @@ bool Alarm::alarming(bool isPhol) {
     }
     time_t now = mktime(&timeinfo);
     if (now > (snoozeTime + (60 * 7))) {
-      Serial.println("Snooze over");
+      // if (now > (snoozeTime + 20)) {
       alarmState = ALARM_ON;
       return true;
     }
@@ -116,17 +122,8 @@ bool Alarm::alarmTriggerNow(bool isPhol) {
   currentTm.tm_sec = 0;  // reset to first second of minute to make comparison easier
   currentTime = mktime(&currentTm);
 
-
-  getAlarmList();
-
   for (int x = 0; x < 6; x++) {
-    if (strlen(alarmList[x]) == 0) {
-      continue;
-    }
-    Serial.print("Checking alarm ");
-    Serial.println(alarmList[x]);
-    AlarmEntry nextAlarm;
-    if (getAlarm(alarmList[x], nextAlarm)) {
+    AlarmEntry nextAlarm = alarms[x];
       Serial.println(toString(nextAlarm));
 
       // Skip the alarm if ...
@@ -146,8 +143,8 @@ bool Alarm::alarmTriggerNow(bool isPhol) {
       t.tm_year = currentTm.tm_year;  // Construct tm as per today for alarm time at zero seconds
       t.tm_mon = currentTm.tm_mon;
       t.tm_mday = currentTm.tm_mday;
-      t.tm_hour = nextAlarm.hour - currentTm.tm_isdst;
-      t.tm_min = nextAlarm.minute;
+      t.tm_hour = nextAlarm.hour.toInt() - currentTm.tm_isdst;
+      t.tm_min = nextAlarm.minute.toInt();
       t.tm_sec = 0;
       time_t alarmTime = mktime(&t);  // convert to seconds
       Serial.print("Now: ");
@@ -158,16 +155,8 @@ bool Alarm::alarmTriggerNow(bool isPhol) {
       Serial.println(alarmedLast[x]);
       if (alarmTime == currentTime && alarmedLast[x] < (currentTime - 20)) {  // Using same 20s as above to debounce
         alarmedLast[x] = currentTime;
-        if (nextAlarm.once) {
-          nextAlarm.enabled = false;
-          Preferences preferences;
-          preferences.begin("alarmStore", false);
-          preferences.putBytes(nextAlarm.name, &nextAlarm, sizeof(nextAlarm));
-          preferences.end();
-        }
         return true;
       }
-    }
   }
   return false;
 }
@@ -192,7 +181,6 @@ void Alarm::snooze() {
   }
   snoozeTime = mktime(&timeinfo);
 }
-
 
 String Alarm::toString(AlarmEntry& thisAlarm) {
   String output = "Name: ";
@@ -257,20 +245,4 @@ String Alarm::toString(AlarmEntry& thisAlarm) {
   }
 
   return output;
-}
-
-bool Alarm::isSnoozed() {
-  if (alarmState == ALARM_SNOOZE) {
-    return true;
-  } else {
-    return false;
-  }
-}
-
-bool Alarm::isOn() {
-  if (alarmState == ALARM_ON) {
-    return true;
-  } else {
-    return false;
-  }
 }

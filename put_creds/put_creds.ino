@@ -14,9 +14,9 @@
 Preferences preferences;
 
 struct AlarmEntry {
-  String name;
-  String hour;
-  String minute;
+  char name[20];
+  int hour;
+  int minute;
   bool sunday;
   bool monday;
   bool tuesday;
@@ -25,21 +25,28 @@ struct AlarmEntry {
   bool friday;
   bool saturday;
   bool skip_phols;
+  bool once;
   bool enabled;
 };
 
-const char* ssid = "xxxxx";
-const char* password = "xxxxx";
-const char* data = "xxxxx";
+// const char* ssid = "xxxxx";
+// const char* password = "xxxxx";
+// const char* data = "xxxxx";
 
 void setup() {
   Serial.begin(115200);
   Serial.println();
 
-  struct AlarmEntry alarmEntry;
-  alarmEntry.name = "Ians";
-  alarmEntry.hour = "17";
-  alarmEntry.minute = "39";
+  preferences.begin("alarmStore", false);
+
+  char alarmList[][20] = {"", "", "", "", "", ""};
+
+  AlarmEntry alarmEntry;
+
+  // alarmEntry.name = "Ian";
+  strcpy(alarmEntry.name, "Ian");
+  alarmEntry.hour = 6;
+  alarmEntry.minute = 30;
   alarmEntry.sunday = false;
   alarmEntry.monday = true;
   alarmEntry.tuesday = true;
@@ -48,10 +55,33 @@ void setup() {
   alarmEntry.friday = true;
   alarmEntry.saturday = false;
   alarmEntry.skip_phols = true;
+  alarmEntry.skip_phols = false;
   alarmEntry.enabled = true;
 
-  preferences.begin("alarmStore", false);
-  preferences.putBytes("0", &alarmEntry, sizeof(alarmEntry));
+  // alarmList[0] = alarmEntry.name;
+  strcpy(alarmList[0], alarmEntry.name);
+  preferences.putBytes(alarmEntry.name, &alarmEntry, sizeof(alarmEntry));
+
+  // alarmEntry.name = "Janet";
+  strcpy(alarmEntry.name, "Janet");
+  alarmEntry.hour = 6;
+  alarmEntry.minute = 0;
+  alarmEntry.sunday = false;
+  alarmEntry.monday = true;
+  alarmEntry.tuesday = true;
+  alarmEntry.wednesday = true;
+  alarmEntry.thursday = true;
+  alarmEntry.friday = true;
+  alarmEntry.saturday = false;
+  alarmEntry.skip_phols = true;
+  alarmEntry.skip_phols = false;
+  alarmEntry.enabled = true;
+
+  // alarmList[1] = alarmEntry.name;
+  strcpy(alarmList[1], alarmEntry.name);
+  preferences.putBytes(alarmEntry.name, &alarmEntry, sizeof(alarmEntry));
+
+  preferences.putBytes("alarms", &alarmList, sizeof(alarmList));
   // preferences.putString("apiKey", data); 
   //String pwd = preferences.gettString("password");
 
@@ -72,14 +102,14 @@ void setup() {
   Serial.print("Enabled: ");
   Serial.println(alarmEntry.enabled);
 
-  preferences.begin("wifiCreds", false);
-  preferences.putString("ssid", ssid);
-  preferences.putString("password", password);
-  preferences.end();
+  // preferences.begin("wifiCreds", false);
+  // preferences.putString("ssid", ssid);
+  // preferences.putString("password", password);
+  // preferences.end();
 
-  preferences.begin("holidayApi", false);
-  preferences.putString("apiKey", data);
-  preferences.end();
+  // preferences.begin("holidayApi", false);
+  // preferences.putString("apiKey", data);
+  // preferences.end();
 }
 
 void loop() {
