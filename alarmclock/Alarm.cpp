@@ -123,11 +123,11 @@ bool Alarm::alarmTriggerNow(bool isPhol) {
     if (strlen(alarmList[x]) == 0) {
       continue;
     }
-    Serial.print("Checking alarm ");
-    Serial.println(alarmList[x]);
+    // Serial.print("Checking alarm ");
+    // Serial.println(alarmList[x]);
     AlarmEntry nextAlarm;
     if (getAlarm(alarmList[x], nextAlarm)) {
-      Serial.println(toString(nextAlarm));
+      // Serial.println(toString(nextAlarm));
 
       // Skip the alarm if ...
       if (!nextAlarm.enabled) continue;

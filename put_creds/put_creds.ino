@@ -29,9 +29,9 @@ struct AlarmEntry {
   bool enabled;
 };
 
-// const char* ssid = "xxxxx";
-// const char* password = "xxxxx";
-// const char* data = "xxxxx";
+const char* ssid = "xxxxxx";
+const char* password = "xxxxxx";
+const char* data = "xxxxxxx";
 
 void setup() {
   Serial.begin(115200);
@@ -102,10 +102,10 @@ void setup() {
   Serial.print("Enabled: ");
   Serial.println(alarmEntry.enabled);
 
-  // preferences.begin("wifiCreds", false);
-  // preferences.putString("ssid", ssid);
-  // preferences.putString("password", password);
-  // preferences.end();
+  preferences.begin("wifiCreds", false);
+  preferences.putString("ssid", ssid);
+  preferences.putString("password", password);
+  preferences.end();
 
   // preferences.begin("holidayApi", false);
   // preferences.putString("apiKey", data);

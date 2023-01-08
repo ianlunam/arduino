@@ -21,8 +21,8 @@
 #include "Pitches.h"
 
 
-#define SNOOZE_BUTTON 12
-#define OFF_BUTTON 13
+#define SNOOZE_BUTTON 32
+#define OFF_BUTTON 33
 #define SPEAKER_PIN 27
 
 
@@ -127,13 +127,13 @@ String alarmToTableRow(AlarmEntry &thisAlarm) {
   }
   output.concat("</td><td style=\"text-align:center\">");
   if (thisAlarm.skip_phols) {
-    output.concat("P");
+    output.concat("Y");
   } else {
     output.concat("N");
   }
   output.concat("</td><td style=\"text-align:center\">");
   if (thisAlarm.once) {
-    output.concat("O");
+    output.concat("Y");
   } else {
     output.concat("N");
   }
@@ -307,7 +307,8 @@ void handleRoot(AsyncWebServerRequest *request) {
   preferences.end();
 
   AsyncResponseStream *response = request->beginResponseStream("text/html");
-  response->print("<!DOCTYPE html><html><head><title>Current Alarms</title><style>body { background-color: #cccccc; font-family: Arial, Helvetica, Sans-Serif; Color: #000088; }</style></head><body>\n");
+  response->print("<!DOCTYPE html><html><head><title>Current Alarms</title><style>body { background-color: #cccccc; font-family: Arial, Helvetica, Sans-Serif; Color: #000088; } table, th, td { border: 1px solid black; padding: 5px;}</style></head><body>\n");
+  response->print("<h1>Hello from the Alarm Clock!</h1>\n");
   response->print("<p>These are the current alarms set.</p>\n");
   response->print("<table>\n");
   response->print("<tr><th>Name</th><th>Time</th><th>&nbsp</th><th>&nbsp</th><th>&nbsp</th><th>&nbsp</th><th>&nbsp</th><th>&nbsp</th><th>&nbsp</th><th>Skip Holidays</th><th>Once Only</th><th>Enabled</th><th>Change</th></tr>\n");

@@ -1,5 +1,6 @@
 #include "esp_camera.h"
 #include <WiFi.h>
+#include <Preferences.h>
 
 //
 // WARNING!!! PSRAM IC required for UXGA resolution and high JPEG quality
@@ -19,15 +20,27 @@
 
 #include "camera_pins.h"
 
-const char* ssid = "xxxxxxxxx";
-const char* password = "xxxxxxxxx";
-
 void startCameraServer();
 
 void setup() {
   Serial.begin(115200);
   Serial.setDebugOutput(true);
   Serial.println();
+
+  Preferences wifiCreds;
+  wifiCreds.begin("wifiCreds", true);
+  String ssid = wifiCreds.getString("ssid");
+  String pwd = wifiCreds.getString("password");
+  wifiCreds.end();
+
+  WiFi.begin(ssid.c_str(), pwd.c_str());
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.println("WiFi connected");
 
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
@@ -89,15 +102,6 @@ void setup() {
   s->set_vflip(s, 1);
   s->set_hmirror(s, 1);
 #endif
-
-  WiFi.begin(ssid, password);
-
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("");
-  Serial.println("WiFi connected");
 
   startCameraServer();
 
