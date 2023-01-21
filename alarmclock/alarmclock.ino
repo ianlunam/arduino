@@ -27,11 +27,11 @@
 
 
 int melody[] = {
-  NOTE_C4, NOTE_G3, NOTE_G3, NOTE_A3, NOTE_G3, 0, NOTE_B3, NOTE_C4
+  NOTE_C6, NOTE_A5, NOTE_C6, NOTE_A5, NOTE_C6, NOTE_A5, NOTE_C6, NOTE_A5
 };
 
 int noteDurations[] = {
-  4, 8, 8, 4, 4, 4, 4, 4
+  4, 4, 4, 4, 4, 4, 4, 4
 };
 
 
