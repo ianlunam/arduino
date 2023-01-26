@@ -6,7 +6,7 @@
 const char* tz = "NZST-12NZDT,M9.5.0,M4.1.0/3";
 
 struct tm timeinfo;
-time_t lastTime;
+time_t lastUpdate;
 
 
 Clock::Clock() {
@@ -17,7 +17,7 @@ Clock::Clock() {
   t.tm_hour = 21;
   t.tm_min = 54;
   t.tm_sec = 13;
-  lastTime = mktime(&t);
+  lastUpdate = mktime(&t);
 }
 
 
@@ -26,7 +26,7 @@ void Clock::init() {
   if (!getLocalTime(&timeinfo)) {
     return;
   }
-  lastTime = mktime(&timeinfo);
+  lastUpdate = mktime(&timeinfo);
 }
 
 
@@ -38,19 +38,16 @@ void Clock::update() {
   time_t now = mktime(&timeinfo);
   if (now > (lastTime + (60 * 60 * 12))) {
     setTime();
-    lastTime = now;
+    lastUpdate = now;
   }
 }
 
 
 void Clock::setTime() {
-  configTime(0, 0, "nz.pool.ntp.org");
+  configTzTime(tz, "nz.pool.ntp.org");
   if (!getLocalTime(&timeinfo)) {
     return;
   }
-
-  setenv("TZ", tz, 1);
-  tzset();
   Serial.println("NTP updated");
 }
 

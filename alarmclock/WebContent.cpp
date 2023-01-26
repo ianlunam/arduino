@@ -97,8 +97,8 @@ void WebContent::holiday() {
   }
   lastDay = timeinfo.tm_mday;
 
-  char ptr[40];
-  int rc = strftime(ptr, 40, "?year=%Y\&month=%m\&day=%d", &timeinfo);
+  char ptr[36];
+  int rc = strftime(ptr, 36, "?year=%Y\&month=%m\&day=%d", &timeinfo);
 
   String url = PUBLIC_HOLIDAYS_URL;
   url.concat(ptr);
@@ -125,10 +125,22 @@ void WebContent::holiday() {
   }
   http.end();
 
-  if (webpage.length() > 2) {  // It'll just be "[]" if it's not a holidy
-    isHoliday = true;
-  } else {
-    isHoliday = false;
+  char chars[webpage.length() + 1];
+  strcpy(chars, webpage.c_str());
+
+  DynamicJsonDocument holidayObject(4096);
+  deserializeJson(holidayObject, chars);
+  isHoliday = false;
+
+  for (JsobObject elem : holidayObject.as<JsonArray>()) {
+    if (elem["type"] == "National") {
+      isHoliday = true;
+      break;
+    }
+    if (elem["location"].indexOf("Bay of Plenty") >= 0) {
+      isHoliday = true;
+      break;
+    }
   }
   Serial.println("Holidays updated");
 }

@@ -11,6 +11,9 @@
 
 int alarmState = ALARM_OFF;
 
+int snoozeCount = 0;
+int maxSnoozeCount = 6;
+
 char alarmList[][20] = { "", "", "", "", "", "" };
 time_t alarmedLast[6];
 time_t snoozeTime = 0;
@@ -175,6 +178,7 @@ bool Alarm::alarmTriggerNow(bool isPhol) {
 void Alarm::turnOff() {
   Serial.println("Alarm off button");
   alarmState = ALARM_OFF;
+  snoozeCount = 0;
 }
 
 void Alarm::turnOn() {
@@ -185,12 +189,14 @@ void Alarm::turnOn() {
 
 void Alarm::snooze() {
   Serial.println("Alarm snooze button");
+  if (snoozeCount >= maxSnoozeCount) return; //No, I'm not going to snooze. Get up you lazy bastard!
   alarmState = ALARM_SNOOZE;
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) {
     return;
   }
   snoozeTime = mktime(&timeinfo);
+  snoozeCount++;
 }
 
 

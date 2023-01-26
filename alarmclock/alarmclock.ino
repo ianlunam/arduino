@@ -414,12 +414,12 @@ void loop() {
   }
   if (snoozeHit) {
     if (myAlarms.isOn()) {
-      Serial.println("Alarming snooze button noticed");
+      Serial.println("Alarming, snooze button noticed");
       myAlarms.snooze();
     } else if (myAlarms.isSnoozed()){
       Serial.println("Already snoozing");
     } else {
-      Serial.println("Not alarming snooze button noticed");
+      Serial.println("Not alarming, snooze button noticed");
       oled.setString(1, "http://" + network.ipAddress());
       delay(5000);
     }
@@ -443,17 +443,21 @@ void loop() {
 
 
 void soundBeeper() {
+  unsigned long expireAt = millis() + 1000 * 60 * 5; // Fine minutes
   for (;;) {
+    if (millis() > expireAt) {
+      snoozeHit = true;
+    }
     for (int thisNote = 0; thisNote < 8; thisNote++) {
       int noteDuration = 1000 / noteDurations[thisNote];
       tone(SPEAKER_PIN, melody[thisNote], noteDuration);
 
       int pauseBetweenNotes = noteDuration * 1.30;
       delay(pauseBetweenNotes);
-      noTone(SPEAKER_PIN);
       if (snoozeHit or offHit) return;
     }
     delay(1000 / portTICK_PERIOD_MS);
+    if (millis() > expireAt) offHit = true;
     if (snoozeHit or offHit) return;
   }
 }
@@ -464,10 +468,5 @@ void tone(byte pin, int freq, int duration) {
   ledcAttachPin(pin, 0);   // attach beeper
   ledcWriteTone(0, freq);  // play tone
   delay(duration);
-  ledcWrite(0, 0);
-}
-
-
-void noTone(byte pin) {
   ledcWrite(0, 0);
 }
