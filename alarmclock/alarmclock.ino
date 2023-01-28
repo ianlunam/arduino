@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <esp_task_wdt.h>
 
 // Different machines :)
 #if defined(ESP32)
@@ -327,6 +328,7 @@ void handleRoot(AsyncWebServerRequest *request) {
 
 void setup() {
   // Start serial
+  esp_task_wdt_init(30, false);
   Serial.begin(115200);
   Serial.println("Starting");
 
@@ -352,7 +354,6 @@ void setup() {
 
   // Reload alarms from memory
   alarmsNeedUpdate = myAlarms.init();
-
   // Init button interrupts
   pinMode(SNOOZE_BUTTON, INPUT);
   attachInterrupt(SNOOZE_BUTTON, toggleSnooze, RISING);

@@ -23,7 +23,9 @@ time_t lastAlarmCheck = 0;
 Alarm::Alarm() {}
 
 
-bool Alarm::init() {}
+bool Alarm::init() {
+  return false;
+}
 
 void Alarm::getAlarmList() {
   Preferences preferences;
@@ -142,8 +144,8 @@ bool Alarm::alarmTriggerNow(bool isPhol) {
       if (currentTm.tm_wday == 2 and !nextAlarm.tuesday) continue;
       if (currentTm.tm_wday == 3 and !nextAlarm.wednesday) continue;
       if (currentTm.tm_wday == 4 and !nextAlarm.thursday) continue;
-      if (currentTm.tm_wday == 6 and !nextAlarm.friday) continue;
-      if (currentTm.tm_wday == 7 and !nextAlarm.saturday) continue;
+      if (currentTm.tm_wday == 5 and !nextAlarm.friday) continue;
+      if (currentTm.tm_wday == 6 and !nextAlarm.saturday) continue;
 
       struct tm t = { 0 };
       t.tm_year = currentTm.tm_year;  // Construct tm as per today for alarm time at zero seconds

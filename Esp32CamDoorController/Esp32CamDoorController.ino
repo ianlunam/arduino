@@ -1,27 +1,37 @@
 #include <WiFi.h>
 #include <Preferences.h>
+#include <ArduinoJson.h>
+#include <HTTPClient.h>
 
 // Pins
-#define ldrPin 15        // GPIO 16 - Only unassigned pin available
-#define buttonPin 0      // GPIO 0 - Has to be low to boot, high to program
-#define motorControl 12  // GPIO 12 - Random pick
-#define flashLight 4     // GPIO 4 - On-board bright LED
+#define LDR_PIN 32     // GPIO 32 - Has pulldown
+#define BUTTON_PIN 33  // GPIO 33 - Has pulldown
+#define MOTOR_PIN 12   // GPIO 12 - Random pick
+#define LED_PIN 27     // GPIO 27 - Random pick
 
 // Boundaries
-#define low 100    // Low light boundary. Needs tuning.
-#define high 200   // High light boundary. Needs tuning.
-#define meh -1     // Default reading.
-#define period 10  // Number of readings in array.
+#define LOW_LIGHT 100       // Low light boundary. Needs tuning.
+#define HIGH_LIGHT 200      // High light boundary. Needs tuning.
+#define MEH_VALUE -1        // Default reading.
+#define PERIOD_VALUE 10     // Number of readings in array.
+#define DEBOUNCE_TIME 200   // ns for debounce
+#define ONE_SECOND 1000000  // us in 1s
+
+unsigned long timer_30_value = ONE_SECOND * 30;       // 30s
+unsigned long timer_300_value = ONE_SECOND * 60 * 5;  // 5mins
 
 // Starting points
-volatile boolean doorOpen = true;
-boolean stopEverything = false;
-float readings[period];
-int pointer = 0;
-volatile bool button_flag = false;
-volatile bool timer30_flag = false;
-volatile bool timer300_flag = false;
+int pointer = 0;                     // Pointer to next value in readings
+float readings[PERIOD_VALUE];        // Array or readings
+boolean doorOpen = false;            // Current state of door
+boolean stopEverything = false;      // Button pressed to override system
+volatile bool button_flag = false;   // Button has been pressed
+unsigned long lastDebounceTime = 0;  // Last time the button was pressed
 
+volatile bool timer30_flag = false;   // Timer has fired
+volatile bool timer300_flag = false;  // Timer has fired
+
+// Hardware timers
 hw_timer_t *timer30 = NULL;
 hw_timer_t *timer300 = NULL;
 
@@ -34,120 +44,31 @@ void IRAM_ATTR onTimer300() {
 }
 
 void IRAM_ATTR buttonPressed() {
-  button_flag = true;
+  if ((millis() - lastDebounceTime) > DEBOUNCE_TIME) {
+    button_flag = true;
+    lastDebounceTime = millis();
+  }
 }
 
 void setup() {
   Serial.begin(115200);
   Serial.println("Starting up");
 
-  pinMode(motorControl, OUTPUT);
-  pinMode(buttonPin, INPUT_PULLUP);
-  pinMode(ldrPin, INPUT);
+  // Define pin modes
+  pinMode(MOTOR_PIN, OUTPUT);
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  pinMode(LDR_PIN, INPUT);
+  attachInterrupt(BUTTON_PIN, buttonPressed, RISING);
 
-  for (int i = 0; i < period; i++) {
-    readings[i] = meh;
+  // Initialise readings array
+  for (int i = 0; i < PERIOD_VALUE; i++) {
+    readings[i] = MEH_VALUE;
   }
-  attachInterrupt(buttonPin, buttonPressed, RISING);
+  getReading();
+  setStatus();
 
-  timer30 = timerBegin(0, 80, true);
-  timerAttachInterrupt(timer30, &onTimer30, true);
-  timerAlarmWrite(timer30, 3000000, true);
-  timerAlarmEnable(timer30);
-
-  timer300 = timerBegin(1, 80, true);
-  timerAttachInterrupt(timer300, &onTimer300, true);
-  timerAlarmWrite(timer300, 30000000, true);
-  timerAlarmEnable(timer300);
-}
-
-void loop() {
-  if (button_flag) {
-    button_flag = false;
-    stopEverything = !stopEverything;
-    doorOpen = !doorOpen;
-    openDoor(doorOpen);
-  }
-
-  if (timer30_flag) {
-    Serial.println("30 timer");
-    timer30_flag = false;
-    getReading();
-  }
-
-  if (timer300_flag) {
-    Serial.println("300 timer");
-    timer300_flag = false;
-    if (!stopEverything) {
-      setStatus(getAverage());
-      sendPhoto();
-    }
-  }
-
-  delay(100);
-}
-
-void getReading() {
-  // Get reading
-  int c = analogRead(ldrPin);
-  if (pointer >= period) pointer = 0;
-  readings[pointer++] = c;
-  Serial.printf("Reading: %d\n", c);
-}
-
-int getAverage() {
-  int total = 0;
-  int readingCounter = 0;
-  for (int i = 0; i < period; i++) {
-    if (readings[i] != meh) {
-      total += readings[i];
-      readingCounter++;
-    }
-  }
-
-  int avg = 0;
-  if (readingCounter != 0) {
-    avg = total / readingCounter;
-  }
-
-  Serial.printf("Total: %d Count: %d Avg: %d\n", total, readingCounter, avg);
-
-  return avg;
-}
-
-// Set the door status
-//   get average reading for period
-//   if average > high, if door closed, open it
-//   if average < low, if door open, close it
-void setStatus(int average) {
-  if (average > high) {
-    if (!doorOpen) {
-      openDoor(true);
-    }
-  } else if (average < low) {
-    if (doorOpen) {
-      openDoor(false);
-    }
-  }
-}
-
-// Open (or close) the door
-void openDoor(boolean newStatus) {
-  if (newStatus) {
-    Serial.println("Opening");
-    doorOpen = true;
-    digitalWrite(motorControl, HIGH);
-  } else {
-    Serial.println("Closing");
-    doorOpen = false;
-    digitalWrite(motorControl, LOW);
-  }
-}
-
-void sendPhoto() {
-  // ###############
-  // Wifi Connection
-  // ###############
+  // WiFi Setup
   Preferences wifiCreds;
   wifiCreds.begin("wifiCreds", true);
   String ssid = wifiCreds.getString("ssid");
@@ -162,10 +83,124 @@ void sendPhoto() {
   Serial.println("\nWiFi connected.");
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
+  Serial.printf("WiFi Signal: %d\n", WiFi.RSSI());
 
-  Serial.println(WiFi.RSSI());
-  WiFi.disconnect();
+  sendStatus();
+  
+  // Setup timers
+  timer30 = timerBegin(0, 80, true);
+  timerAttachInterrupt(timer30, &onTimer30, true);
+  timerAlarmWrite(timer30, timer_30_value, true);
+  timerAlarmEnable(timer30);
 
+  timer300 = timerBegin(1, 80, true);
+  timerAttachInterrupt(timer300, &onTimer300, true);
+  timerAlarmWrite(timer300, timer_300_value, true);
+  timerAlarmEnable(timer300);
+}
 
-  pinMode(ldrPin, INPUT);
+void loop() {
+  if (button_flag) {
+    button_flag = false;
+    stopEverything = !stopEverything;
+    doorOpen = !doorOpen;
+    openDoor(doorOpen);
+  }
+
+  if (timer30_flag) {
+    timer30_flag = false;
+    getReading();
+  }
+
+  if (timer300_flag) {
+    timer300_flag = false;
+    if (!stopEverything) {
+      setStatus();
+    } else {
+      Serial.println("Override in place. Not checking status.");
+    }
+    sendStatus();
+  }
+
+  delay(100);
+}
+
+void getReading() {
+  // Get reading
+  int c = analogRead(LDR_PIN);
+  if (pointer >= PERIOD_VALUE) pointer = 0;
+  readings[pointer++] = c;
+  Serial.printf("Reading: %d\n", c);
+}
+
+int getAverage() {
+  int total = 0;
+  int readingCounter = 0;
+  for (int i = 0; i < PERIOD_VALUE; i++) {
+    if (readings[i] != MEH_VALUE) {
+      total += readings[i];
+      readingCounter++;
+    }
+  }
+
+  int avg = 0;
+  if (readingCounter != 0) {
+    avg = total / readingCounter;
+  }
+  Serial.printf("Total: %d Count: %d Avg: %d\n", total, readingCounter, avg);
+  return avg;
+}
+
+// Set the door status
+//   get average reading for PERIOD_VALUE
+//   if average > high, if door closed, open it
+//   if average < low, if door open, close it
+void setStatus() {
+  int average = getAverage();
+  if (average > HIGH_LIGHT) {
+    if (!doorOpen) {
+      openDoor(true);
+    }
+  } else if (average < LOW_LIGHT) {
+    if (doorOpen) {
+      openDoor(false);
+    }
+  }
+}
+
+// Open (or close) the door
+void openDoor(boolean newStatus) {
+  if (newStatus) {
+    Serial.println("Opening");
+    doorOpen = true;
+    digitalWrite(MOTOR_PIN, HIGH);
+    digitalWrite(LED_PIN, HIGH);
+  } else {
+    Serial.println("Closing");
+    doorOpen = false;
+    digitalWrite(MOTOR_PIN, LOW);
+    digitalWrite(LED_PIN, LOW);
+  }
+}
+
+String boolToString(bool value) {
+  if (value) return "True";
+  return "False";
+}
+
+void sendStatus() {
+  StaticJsonDocument<200> doc;
+  doc["id"] = "ChickenRunDoorController";
+  doc["doorOpen"] = boolToString(doorOpen);
+  doc["override"] = boolToString(stopEverything);
+  doc["averageReading"] = getAverage();
+
+  String json;
+  serializeJson(doc, json);
+
+  HTTPClient http;
+  http.begin("https://www.lunam.org/index.html");
+  int httpCode = http.POST(json);
+  Serial.print(http.getString());
+  http.end();
 }

@@ -310,4 +310,7 @@ void Display::updateDisplay() {
     }
   }
   display.display();
+  
+  // Keep it dim
+  display.dim(true);
 }

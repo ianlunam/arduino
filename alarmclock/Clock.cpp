@@ -36,7 +36,7 @@ void Clock::update() {
   }
 
   time_t now = mktime(&timeinfo);
-  if (now > (lastTime + (60 * 60 * 12))) {
+  if (now > (lastUpdate + (60 * 60 * 12))) {
     setTime();
     lastUpdate = now;
   }

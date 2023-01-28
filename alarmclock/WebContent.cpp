@@ -132,12 +132,13 @@ void WebContent::holiday() {
   deserializeJson(holidayObject, chars);
   isHoliday = false;
 
-  for (JsobObject elem : holidayObject.as<JsonArray>()) {
+  for (JsonObject elem : holidayObject.as<JsonArray>()) {
     if (elem["type"] == "National") {
       isHoliday = true;
       break;
     }
-    if (elem["location"].indexOf("Bay of Plenty") >= 0) {
+    String loc = elem["location"];
+    if (loc.indexOf("Bay of Plenty") >= 0) {
       isHoliday = true;
       break;
     }
