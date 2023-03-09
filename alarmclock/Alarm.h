@@ -21,7 +21,6 @@ struct AlarmEntry {
 class Alarm {
 public:
   Alarm();
-  bool init();
   bool getAlarm(char* name, AlarmEntry& newEntry);
   bool alarming(bool isPhol);
   void turnOff();

@@ -46,26 +46,24 @@ Configurator configurator;
 AsyncWebServer server(80);
 const char *PARAM_MESSAGE = "message";
 
-time_t lastOffHit = 0;
-time_t lastSnoozeHit = 0;
+time_t lastButtonHit = 0;
 bool snoozeHit = false;
 bool offHit = false;
-bool alarmsNeedUpdate = false;
 
 void IRAM_ATTR toggleSnooze() {
-  if (lastSnoozeHit < (millis() - 1000)) {
+  if (lastButtonHit < (millis() - 1000)) {
     Serial.println("Toggle snooze button");
     snoozeHit = true;
-    lastSnoozeHit = millis();
+    lastButtonHit = millis();
   }
 }
 
 
 void IRAM_ATTR toggleOff() {
-  if (lastOffHit < (millis() - 1000)) {
+  if (lastButtonHit < (millis() - 1000)) {
     Serial.println("Toggle off button");
     offHit = true;
-    lastOffHit = millis();
+    lastButtonHit = millis();
   }
 }
 
@@ -352,8 +350,6 @@ void setup() {
     oled.setString(4, "");
   }
 
-  // Reload alarms from memory
-  alarmsNeedUpdate = myAlarms.init();
   // Init button interrupts
   pinMode(SNOOZE_BUTTON, INPUT);
   attachInterrupt(SNOOZE_BUTTON, toggleSnooze, RISING);
@@ -436,9 +432,6 @@ void loop() {
       delay(1000);
     }
     offHit = false;
-  }
-  if (alarmsNeedUpdate) {
-    alarmsNeedUpdate = myAlarms.init();
   }
 }
 
