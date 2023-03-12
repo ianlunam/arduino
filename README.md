@@ -13,7 +13,7 @@ Original Arduino Uno version with ezButton, loops, structs is [here](./DoorConto
 New version for attiny with interrupts, sleeping CPUs and logic ICs is [here](./attiny85/DoorContoller).
 
 Due to various requirements and limitations of the equipment, I'm now moving to having the attiny85 watch
-the LDR and run the door control code, logic ICs to move and door and an ESP32-CAM as a webcam and to
+the LDR and run the door control code, logic ICs to move the door and an ESP32-CAM as a webcam and to
 report back to the house. The attiny85 will provide the esp32 with data via I2C.
 
 Why? Because the esp32-cam doesn't have any analog pins available because they're all used by the camera.
