@@ -11,7 +11,7 @@ time_t lastUpdate;
 
 Clock::Clock() {
   struct tm t = { 0 };
-  t.tm_year = 112;  // This is year-1900, so 112 = 2012
+  t.tm_year = 112;  // This is year-1900, so 112 = 2012, randomly picked.
   t.tm_mon = 8;
   t.tm_mday = 15;
   t.tm_hour = 21;

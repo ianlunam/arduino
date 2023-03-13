@@ -428,7 +428,7 @@ void loop() {
       myAlarms.turnOff();
     } else {
       Serial.println("Not alarming button off noticed");
-      oled.setString(1, "Fuck off!");
+      oled.setString(1, "No.");
       delay(1000);
     }
     offHit = false;
@@ -437,7 +437,7 @@ void loop() {
 
 
 void soundBeeper() {
-  unsigned long expireAt = millis() + 1000 * 60 * 5; // Fine minutes
+  unsigned long expireAt = millis() + 1000 * 60 * 5; // Five minutes
   for (;;) {
     if (millis() > expireAt) {
       snoozeHit = true;
@@ -453,6 +453,10 @@ void soundBeeper() {
     delay(1000 / portTICK_PERIOD_MS);
     if (millis() > expireAt) offHit = true;
     if (snoozeHit or offHit) return;
+
+    // Keep the display up to date
+    oled.setString(0, myClock.getTimeString());
+    oled.setString(1, myClock.getDateString());
   }
 }
 
