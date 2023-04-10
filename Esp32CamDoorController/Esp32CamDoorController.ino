@@ -10,8 +10,8 @@
 #define LED_PIN 27     // GPIO 27 - Random pick
 
 // Boundaries
-#define LOW_LIGHT 100       // Low light boundary. Needs tuning.
-#define HIGH_LIGHT 200      // High light boundary. Needs tuning.
+#define LOW_LIGHT 50       // Low light boundary. Needs tuning.
+#define HIGH_LIGHT 100      // High light boundary. Needs tuning.
 #define MEH_VALUE -1        // Default reading.
 #define PERIOD_VALUE 10     // Number of readings in array.
 #define DEBOUNCE_TIME 200   // ns for debounce
@@ -197,9 +197,10 @@ void sendStatus() {
 
   String json;
   serializeJson(doc, json);
-
   HTTPClient http;
-  http.begin("https://www.lunam.org/index.html");
+  http.begin("http://192.168.0.241/upload.php");
+  http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+  http.addHeader("Accept", "*/*");
   int httpCode = http.POST(json);
   Serial.print(http.getString());
   http.end();
