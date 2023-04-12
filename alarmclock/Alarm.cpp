@@ -93,6 +93,11 @@ bool Alarm::alarming(bool isPhol) {
     }
     return false;
   } else {
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo)) {
+      return false;
+    }
+    time_t now = mktime(&timeinfo);
     if (alarmTriggerNow(isPhol)) {
       alarmState = ALARM_ON;
       alarmStarted = now;

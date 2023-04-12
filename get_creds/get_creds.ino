@@ -13,58 +13,15 @@
 
 Preferences preferences;
 
-struct AlarmEntry {
-  String name;
-  String hour;
-  String minute;
-  bool sunday;
-  bool monday;
-  bool tuesday;
-  bool wednesday;
-  bool thursday;
-  bool friday;
-  bool saturday;
-  bool skip_phols;
-  bool once;
-  bool enabled;
-};
-
 
 void setup() {
   Serial.begin(115200);
   Serial.println();
 
-  AlarmEntry alarmEntries[6];
-  AlarmEntry alarmEntry;
-
-  Preferences alarmStore;
-  alarmStore.begin("alarmStore", true);
-  // int size = alarmStore.getBytesLength("alarms");
-  // char* buf[size + 1];
-  // int result = alarmStore.getBytes("alarms", &buf, size);
-  // memcpy(&alarmEntries, buf, size);
-  preferences.remove("0");
-  preferences.remove("1");
-  preferences.remove("alarms");
-  preferences.clear();
-  alarmStore.end();
-
-  alarmEntry = alarmEntries[2];
-
-  // Serial.print("Name: ");
-  // Serial.println(alarmEntry.name);
-  // Serial.print("Hour: ");
-  // Serial.println(alarmEntry.hour);
-  // Serial.print("Minute: ");
-  // Serial.println(alarmEntry.minute);
-  // Serial.print("Sunday: ");
-  // Serial.println(alarmEntry.sunday);
-  // Serial.print("Monday: ");
-  // Serial.println(alarmEntry.monday);
-  // Serial.print("Skip Phols: ");
-  // Serial.println(alarmEntry.skip_phols);
-  // Serial.print("Enabled: ");
-  // Serial.println(alarmEntry.enabled);
+  preferences.begin("wifiCreds", false);
+  preferences.putString("ssid", "DontEvenThinkAboutIt");
+  preferences.putString("password", "w0bblel0");
+  preferences.end();
 }
 
 void loop() {
