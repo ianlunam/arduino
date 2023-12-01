@@ -11,6 +11,7 @@
 
 #include <Preferences.h>
 
+#include <ESPmDNS.h>
 #include "Network.h"
 
 
@@ -29,6 +30,7 @@ void Network::connect() {
     delay(500);
     Serial.print(".");
   }
+
   Serial.println("\nWiFi connected.");
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());

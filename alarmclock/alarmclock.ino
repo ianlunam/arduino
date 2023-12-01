@@ -12,6 +12,7 @@
 
 #include <ESPAsyncWebServer.h>
 #include <Preferences.h>
+#include <ArduinoOTA.h>
 
 #include "Network.h"
 #include "Clock.h"
@@ -197,7 +198,7 @@ void handleSave(AsyncWebServerRequest *request) {
     return;
   }
 
-  AlarmEntry alarmEntry = {"", 0, 0, false, false, false, false, false, false, false, false, false, false};
+  AlarmEntry alarmEntry = { "", 0, 0, false, false, false, false, false, false, false, false, false, false };
   Preferences preferences;
   strcpy(alarmEntry.name, request->getParam("name")->value().c_str());
   alarmEntry.hour = request->getParam("hour")->value().toInt();
@@ -234,7 +235,7 @@ void handleSave(AsyncWebServerRequest *request) {
     if (strcmp(alarmList[x], request->getParam("name")->value().c_str()) == 0) {
       found = true;
     } else if (strlen(alarmList[x]) == 0 && freePos == -1) {
-      freePos = x;      
+      freePos = x;
     }
   }
   if (!found) {
@@ -372,6 +373,35 @@ void setup() {
     handleDelete(request);
   });
 
+  ArduinoOTA
+    .onStart([]() {
+      String type;
+      if (ArduinoOTA.getCommand() == U_FLASH)
+        type = "sketch";
+      else  // U_SPIFFS
+        type = "filesystem";
+
+      // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+      Serial.println("Start updating " + type);
+    })
+    .onEnd([]() {
+      Serial.println("\nEnd");
+    })
+    .onProgress([](unsigned int progress, unsigned int total) {
+      Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+    })
+    .onError([](ota_error_t error) {
+      Serial.printf("Error[%u]: ", error);
+      if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+      else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+      else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+      else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+      else if (error == OTA_END_ERROR) Serial.println("End Failed");
+    });
+
+  ArduinoOTA.setHostname("alarmclock");
+  ArduinoOTA.begin();
+
   server.onNotFound(notFound);
   server.begin();
 
@@ -413,7 +443,7 @@ void loop() {
     if (myAlarms.isOn()) {
       Serial.println("Alarming, snooze button noticed");
       myAlarms.snooze();
-    } else if (myAlarms.isSnoozed()){
+    } else if (myAlarms.isSnoozed()) {
       Serial.println("Already snoozing");
     } else {
       Serial.println("Not alarming, snooze button noticed");
@@ -433,11 +463,13 @@ void loop() {
     }
     offHit = false;
   }
+
+  ArduinoOTA.handle();
 }
 
 
 void soundBeeper() {
-  unsigned long expireAt = millis() + 1000 * 60 * 5; // Five minutes
+  unsigned long expireAt = millis() + 1000 * 60 * 5;  // Five minutes
   for (;;) {
     if (millis() > expireAt) {
       snoozeHit = true;

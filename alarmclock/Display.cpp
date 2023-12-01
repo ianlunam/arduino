@@ -253,8 +253,13 @@ void Display::init() {
     return;
   }
 
-  // Keep it dim
-  display.dim(true);
+  // Dim
+  display.ssd1306_command(SSD1306_SETPRECHARGE);
+  display.ssd1306_command(0xf1);
+  display.ssd1306_command(SSD1306_SETVCOMDETECT);
+  display.ssd1306_command(0x00);
+  display.ssd1306_command(SSD1306_SETCONTRAST);
+  display.ssd1306_command(0x00);
 
   // Clear and display logo
   display.clearDisplay();
@@ -310,7 +315,4 @@ void Display::updateDisplay() {
     }
   }
   display.display();
-  
-  // Keep it dim
-  display.dim(true);
 }
