@@ -23,6 +23,40 @@ ButtonWidget btnR = ButtonWidget(&tft);
 #define BUTTON_W 100
 #define BUTTON_H 50
 
+// MPI3501 ESP32
+//     1 - 3.3v
+//     2 - 5v
+//     3 - NC
+//     4 - 5v
+//     5 - NC
+//     6 - GND
+//     7 - NC
+//     8 - NC
+//     9 - GND
+//    10 - NC
+//    11 - NC
+//    12 - NC
+//    13 - NC
+//    14 - GND
+//    15 - NC
+//    16 - NC
+//    17 - 3.3v
+//    18 - NC
+//    19 - D23
+//    20 - D2
+//    21 - D19
+//    22 - D4
+//    23 - D18
+//    24 - D15
+//    25 - NC
+//    26 - D22
+
+// MPI3501 pin locations
+// Nearest corner top left
+//  2 - 1
+//  .......
+// 26 - 25
+
 // Create an array of button instances to use in for() loops
 // This is more useful where large numbers of buttons are employed
 ButtonWidget *btn[] = { &btnR };
@@ -32,43 +66,30 @@ uint8_t buttonCount = sizeof(btn) / sizeof(btn[0]);
 
 // MQTT Broker
 const char *mqtt_broker = "mqtt.local";
-const char *topic = "emqx/esp32";
-const char *mqtt_username = "admin";
-const char *mqtt_password = "password";
+const char *topic = "fairylights/toggle";
+const char *state_topic = "homeassistant/switch/sonoff_1001ffea20_1/state";
+byte on_state[] = {'o','n'};
 const int mqtt_port = 1883;
 
 WiFiClient espClient;
 PubSubClient client(espClient);
 
 void callback(char *topic, byte *payload, unsigned int length) {
-  Serial.print("Message arrived in topic: ");
-  Serial.println(topic);
-  Serial.print("Message:");
-  for (int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
+  if (memcmp(payload, on_state, sizeof(on_state)) == 0) {
+    Serial.println("New state is on");
+    btnR.drawSmoothButton(true, 3, TFT_BLACK, "ON");
+  } else {
+    Serial.println("New state is off");
+    btnR.drawSmoothButton(false, 3, TFT_BLACK, "OFF");
   }
-  Serial.println();
-  Serial.println("-----------------------");
 }
 
 void btnR_pressAction(void) {
   if (btnR.justPressed()) {
-    btnR.drawSmoothButton(!btnR.getState(), 3, TFT_BLACK, btnR.getState() ? "OFF" : "ON");
-    Serial.print("Button toggled: ");
-    if (btnR.getState()) {
-      Serial.println("ON");
-      client.publish(topic, "Light goes on!");
-    } else {
-      client.publish(topic, "Light goes off.");
-      Serial.println("OFF");
-    }
+    Serial.println("Button toggled");
+    client.publish(topic, "Light toggle.");
     btnR.setPressTime(millis());
   }
-
-  // if button pressed for more than 1 sec...
-  if (millis() - btnR.getPressTime() >= 1000) {
-    Serial.println("Stop pressing my buttton.......");
-  } else Serial.println("Right button is being pressed");
 }
 
 void btnR_releaseAction(void) {
@@ -76,20 +97,28 @@ void btnR_releaseAction(void) {
 }
 
 void initButtons() {
-  uint16_t x = (tft.width() - BUTTON_W) / 2;
-  uint16_t y = tft.height() / 2 - BUTTON_H - 10;
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.setCursor(5, 30);
+  tft.print("Fairy Lights");
+  
+  // uint16_t x = (tft.width() - BUTTON_W) / 2;
+  // uint16_t y = tft.height() / 2 - BUTTON_H - 10;
+  uint16_t x = 15;
+  uint16_t y = (BUTTON_H / 2) + 20;
   btnR.initButtonUL(x, y, BUTTON_W, BUTTON_H, TFT_WHITE, TFT_BLACK, TFT_GREEN, "OFF", 1);
   btnR.setPressAction(btnR_pressAction);
   //btnR.setReleaseAction(btnR_releaseAction);
   btnR.drawSmoothButton(false, 3, TFT_BLACK);  // 3 is outline width, TFT_BLACK is the surrounding background colour for anti-aliasing
+
 }
 
 void setup() {
   Serial.begin(115200);
   tft.begin();
-  tft.setRotation(0);
+  tft.setRotation(1);
   tft.fillScreen(TFT_BLACK);
   tft.setFreeFont(FF18);
+
 
   // Calibrate the touch screen and retrieve the scaling factors
   touch_calibrate();
@@ -118,8 +147,7 @@ void setup() {
     String client_id = "esp32-client-";
     client_id += String(WiFi.macAddress());
     Serial.printf("The client %s connects to the public MQTT broker\n", client_id.c_str());
-    if (client.connect(client_id.c_str(), mqtt_username, mqtt_password)) {
-      // if (client.connect(client_id.c_str())) {
+    if (client.connect(client_id.c_str())) { 
       Serial.println("EMQX MQTT broker connected");
     } else {
       Serial.print("failed with state ");
@@ -128,8 +156,8 @@ void setup() {
     }
   }
   // Publish and subscribe
-  client.publish(topic, "Hi, I'm ESP32 ^^");
-  client.subscribe(topic);
+  // client.publish(topic, "Hi, I'm ESP32 ^^");
+  client.subscribe(state_topic);
 }
 
 void loop() {
